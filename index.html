@@ -13,6 +13,7 @@
     }
     html, body {
         width: 100%;
+        height: 100dvh;
         margin: 0;
         padding: 0;
         overflow: hidden;
@@ -31,23 +32,53 @@
         box-sizing: border-box;
         background-color: var(--c-bg);
     }
-    /* 絵の画面 */
+    /* グラフィック画面 */
     canvas {
         width: 100%;
         height: auto;
-        /* OSキーボードが出ても適度に縮むように flex-shrink を有効化 */
-        max-height: 38vh; 
+        max-height: 36dvh; 
         object-fit: contain;
         background-color: var(--c-bg);
         border-bottom: 2px solid var(--c-white);
         image-rendering: pixelated;
         flex: 0 1 auto;
+        cursor: pointer;
+        transition: max-height 0.2s ease-out; /* サイズ変更を滑らかに */
     }
+    
+    /* コマンド入力フォーム */
+    #cmd-form {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 6px;
+        background-color: #222;
+        border-bottom: 1px solid #555;
+        flex: 0 0 auto;
+    }
+    .form-row { display: flex; gap: 6px; width: 100%; align-items: center; }
+    
+    #cmd-input {
+        flex: 1; background-color: #000; color: #FFF; border: 1px solid var(--c-white);
+        padding: 8px; font-family: inherit; font-size: 16px; border-radius: 4px;
+        caret-color: transparent;
+    }
+    #cmd-input.typing { caret-color: #FFF; }
+    #cmd-input:focus { outline: none; box-shadow: 0 0 5px var(--c-white); }
+    
+    .action-btn {
+        background-color: #333; color: #FFF; border: 1px solid #555; border-radius: 4px; 
+        padding: 8px 12px; font-weight: bold; font-size: 14px; cursor: pointer;
+        touch-action: manipulation; transition: transform 0.1s;
+        white-space: nowrap;
+    }
+    .action-btn:active { transform: scale(0.92); background-color: #555; }
+    
     /* メッセージ領域 */
     #log-container {
         flex: 1 1 auto;
         overflow-y: auto;
-        padding: 6px 8px;
+        padding: 8px 10px;
         font-size: 13px;
         line-height: 1.5;
         color: var(--c-white);
@@ -55,10 +86,10 @@
     }
     #log-container p { margin: 0 0 6px 0; }
     
-    /* コントロール全体 */
+    /* コントロール全体（下部） */
     #controls {
         flex: 0 0 auto;
-        padding: 4px;
+        padding: 4px 4px 8px 4px;
         background: #111;
         border-top: 1px solid #555;
         display: flex;
@@ -75,7 +106,7 @@
     
     /* タブ・ボタン共通 */
     .cat-btn {
-        flex: 0 0 auto; min-width: 45px; padding: 6px 0; background-color: #222; color: #aaa;
+        flex: 1; padding: 8px 0; background-color: #222; color: #aaa;
         border: 1px solid #444; border-radius: 4px; font-size: 13px; font-weight: bold;
         text-align: center; cursor: pointer; touch-action: manipulation;
         transition: transform 0.1s;
@@ -92,92 +123,129 @@
     .item-btn.verb { border-color: var(--c-green); color: var(--c-green); }
     .item-btn.noun { border-color: var(--c-cyan); color: var(--c-cyan); }
     .item-btn.other { border-color: var(--c-white); color: var(--c-white); }
-    .item-btn.kb-char { padding: 6px 16px; border-color: #888; color: #fff; } 
-    
-    /* 入力フォーム */
-    #cmd-form { display: flex; gap: 4px; }
-    #cmd-input {
-        flex: 1; background-color: #000; color: #FFF; border: 1px solid var(--c-white);
-        padding: 6px 8px; font-family: inherit; font-size: 16px; border-radius: 4px;
-        caret-color: transparent;
-    }
-    #cmd-input.typing { caret-color: #FFF; }
-    #cmd-input:focus { outline: none; box-shadow: 0 0 5px var(--c-white); }
-    
-    .action-btn {
-        background-color: #333; color: #FFF; border: 1px solid #555; border-radius: 4px; 
-        padding: 0 8px; font-weight: bold; font-size: 13px; cursor: pointer;
-        touch-action: manipulation; transition: transform 0.1s;
-    }
-    .action-btn:active { transform: scale(0.92); background-color: #555; }
-    .cmd-submit { background-color: var(--c-white); color: #000; border-color: var(--c-white); padding: 0 12px; }
     
     /* 常時表示の特殊キー */
     .special-keys { display: flex; gap: 4px; }
     .special-btn {
-        flex: 1; padding: 5px 0; background-color: #2a2a2a; color: #fff;
+        flex: 1; padding: 6px 0; background-color: #2a2a2a; color: #fff;
         border: 1px solid #555; border-radius: 4px; font-size: 13px; font-weight: bold;
         text-align: center; cursor: pointer; touch-action: manipulation;
+        user-select: none; -webkit-user-select: none;
     }
     .special-btn:active { background-color: #555; transform: scale(0.95); }
+
+    /* ガラケー風仮想キーボード */
+    #kb-toggle-container {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 4px;
+    }
+    .kb-toggle-btn {
+        padding: 8px 0; background-color: #222; color: #fff;
+        border: 1px solid #444; border-radius: 4px; font-size: 15px; font-weight: bold;
+        text-align: center; cursor: pointer; touch-action: manipulation;
+        transition: transform 0.1s;
+    }
+    .kb-toggle-btn:active { background-color: #444; transform: scale(0.92); }
+
+    /* 最下部の実行・履歴ボタン */
+    #bottom-actions {
+        display: flex;
+        gap: 6px;
+        margin-top: 4px;
+    }
+    .bottom-btn {
+        flex: 1; padding: 12px 0; font-size: 16px; font-weight: bold; border-radius: 4px;
+        cursor: pointer; touch-action: manipulation; transition: transform 0.1s; border: none;
+    }
+    .bottom-btn:active { transform: scale(0.95); }
+    .btn-history { background-color: #444; color: #FFF; }
+    .btn-submit { background-color: var(--c-white); color: #000; }
+
 </style>
 </head>
 <body>
 
 <div id="game-container">
+    <!-- グラフィック -->
     <canvas id="screen" width="640" height="400"></canvas>
-    <div id="log-container"></div>
-    <div id="controls">
-        
-        <!-- コマンドカテゴリタブ -->
-        <div class="scroll-row" id="cmd-tabs">
-            <button class="cat-btn cmd-cat-btn" id="cat-イドウ" onclick="showCmdCategory('イドウ')" style="flex:1;">イドウ</button>
-            <button class="cat-btn cmd-cat-btn" id="cat-ドウシ" onclick="showCmdCategory('ドウシ')" style="flex:1;">ドウシ</button>
-            <button class="cat-btn cmd-cat-btn" id="cat-メイシ" onclick="showCmdCategory('メイシ')" style="flex:1;">メイシ</button>
-            <button class="cat-btn cmd-cat-btn" id="cat-ソノタ" onclick="showCmdCategory('ソノタ')" style="flex:1;">ソノタ</button>
-        </div>
-        
-        <!-- コマンドのアイテム -->
-        <div id="cmd-items" class="scroll-row"></div>
-        
-        <!-- 入力フォーム -->
-        <form id="cmd-form">
-            <button type="button" class="action-btn" onclick="showHistory()">履歴</button>
+    
+    <!-- 入力フォーム -->
+    <form id="cmd-form" onsubmit="event.preventDefault(); submitCommand();">
+        <div class="form-row">
             <input type="text" id="cmd-input" placeholder="コマンド入力" inputmode="none" autocomplete="off" oninput="checkTyping()">
             <button type="button" class="action-btn" id="os-kb-btn" onclick="toggleOSKeyboard()" title="OSキーボード切替">⌨️</button>
-            <button type="submit" class="action-btn cmd-submit">実行</button>
-        </form>
-
-        <!-- 特殊キー（常時表示） -->
-        <div class="special-keys">
-            <button class="special-btn" onclick="typeChar('゛')">゛(濁点)</button>
-            <button class="special-btn" onclick="typeChar('゜')">゜(半濁)</button>
-            <button class="special-btn" onclick="typeChar('小')">小文字</button>
-            <button class="special-btn" onclick="typeChar('ー')">ー</button>
-            <button class="special-btn" onclick="typeChar('空')">空白</button>
-            <button class="special-btn" onclick="typeChar('BS')">BS</button>
+            <button type="button" class="action-btn" onclick="showHistory()" title="履歴呼び出し">履歴</button>
         </div>
-
-        <!-- キーボードのアイテム（アイウエオなど） -->
-        <div id="kb-items" class="scroll-row" style="justify-content: center; min-height: 32px;"></div>
-
-        <!-- キーボードカテゴリタブ（ア〜ワ） -->
-        <div class="scroll-row" id="kb-tabs">
-            <!-- JSで動的に生成 -->
+        <div class="form-row" id="bottom-actions-top" style="display: none;">
+            <!-- OSキーボード使用時は下のボタンが隠れるため、ここにも一時的に表示させる場合用ですが今回は下部固定で処理 -->
         </div>
+    </form>
+    
+    <!-- メッセージ -->
+    <div id="log-container"></div>
+    
+    <!-- コントロールパネル -->
+    <div id="controls">
+        <!-- コマンドカテゴリタブ (OSキーボード時も残る) -->
+        <div class="scroll-row" id="cmd-tabs" style="display: flex;">
+            <button class="cat-btn cmd-cat-btn" id="cat-イドウ" onclick="showCmdCategory('イドウ')">イドウ</button>
+            <button class="cat-btn cmd-cat-btn" id="cat-ドウシ" onclick="showCmdCategory('ドウシ')">ドウシ</button>
+            <button class="cat-btn cmd-cat-btn" id="cat-メイシ" onclick="showCmdCategory('メイシ')">メイシ</button>
+            <button class="cat-btn cmd-cat-btn" id="cat-ソノタ" onclick="showCmdCategory('ソノタ')">ソノタ</button>
+        </div>
+        
+        <div id="cmd-items" class="scroll-row"></div>
 
+        <!-- 仮想キーボード領域 (OSキーボード時は隠れる) -->
+        <div id="keyboard-area">
+            <div class="special-keys" id="special-keys-container">
+                <button class="special-btn" onclick="typeSpecial('゛')">゛</button>
+                <button class="special-btn" onclick="typeSpecial('゜')">゜</button>
+                <button class="special-btn" onclick="typeSpecial('小')">小</button>
+                <button class="special-btn" onclick="typeSpecial('ー')">ー</button>
+                <button class="special-btn" onclick="typeSpecial('空')">空白</button>
+                <button class="special-btn" id="bs-btn">BS</button>
+            </div>
+
+            <div id="kb-toggle-container">
+                <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'ア')">ア行</button>
+                <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'カ')">カ行</button>
+                <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'サ')">サ行</button>
+                <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'タ')">タ行</button>
+                <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'ナ')">ナ行</button>
+                <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'ハ')">ハ行</button>
+                <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'マ')">マ行</button>
+                <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'ヤ')">ヤ行</button>
+                <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'ラ')">ラ行</button>
+                <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'ワ')">ワ行</button>
+            </div>
+            
+            <!-- 下部の履歴と実行ボタン (OSキーボード時は隠れる) -->
+            <div id="bottom-actions">
+                <button type="button" class="bottom-btn btn-history" onclick="showHistory()">履歴</button>
+                <button type="button" class="bottom-btn btn-submit" onclick="submitCommand()">実行</button>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
-// --- iOSキーボードスクロール対策 ---
+// --- iOSキーボード等による画面サイズ縮小への追従とスクロール対策 ---
+const scrollLogToBottom = () => {
+    const logDiv = document.getElementById('log-container');
+    if (logDiv) logDiv.scrollTop = logDiv.scrollHeight;
+};
+
 if (window.visualViewport) {
-    const adjustHeight = () => {
+    const adjustViewport = () => {
         document.body.style.height = window.visualViewport.height + 'px';
         window.scrollTo(0, 0);
+        setTimeout(scrollLogToBottom, 50);
     };
-    window.visualViewport.addEventListener('resize', adjustHeight);
-    adjustHeight();
+    window.visualViewport.addEventListener('resize', adjustViewport);
+    window.visualViewport.addEventListener('scroll', adjustViewport);
+    adjustViewport();
 }
 
 // --- カラー定義 ---
@@ -187,50 +255,52 @@ const COLORS = {
 };
 
 // --- ゲーム状態 ---
-let state = {
-    screen: 'title', // 'title', 'play', 'clear', 'map'
-    currentRoom: 'front',
-    facing: 'N',
-    visitedRooms: ['front'],
-    flags: { frontDoorOpen: false, fridgeOpen: false, chestOpened: false }
-};
+let state = {};
+let items = {};
 
-const items = {
-    'メモ': { name: 'メモ', location: 'hall' },
-    'カギ': { name: 'カギ', location: 'hidden' },
-    'マッチ': { name: 'マッチ', location: 'hidden' },
-    'タカラ': { name: 'タカラ', location: 'hidden' }
-};
+function resetState() {
+    state = {
+        screen: 'title', currentRoom: 'front', facing: 'N', visitedRooms: ['front'],
+        flags: { frontDoorOpen: false, fridgeOpen: false, chestOpened: false, darkRoomLight: false, wallBroken: false, trapdoorOpen: false }
+    };
+    items = {
+        'メモ': { name: 'メモ', location: 'hall' },
+        'カギ': { name: 'カギ', location: 'hidden' },
+        'マッチ': { name: 'マッチ', location: 'hidden' },
+        'ハンマー': { name: 'ハンマー', location: 'hidden' },
+        'バール': { name: 'バール', location: 'hidden' },
+        'タカラ': { name: 'タカラ', location: 'basement_chest' }, // タカラバコの中
+        'キンカイ': { name: 'キンカイ', location: 'hidden_room' }
+    };
+}
+resetState();
 
-// ランダムにアイテムを配置する関数
+// --- アイテムのランダム配置（難易度UP） ---
 function initHiddenItems() {
-    // 隠し場所の候補
-    const hiddenSpots = ['fridge', 'study_books', 'kids_toy', 'bed'];
-    // 配列をシャッフル
+    // 隠し場所候補 (1Fと2Fから満遍なく)
+    const hiddenSpots = ['fridge', 'kitchen_table', 'dining_table', 'study_books', 'hall_stairs', 'kids_toy', 'bed', 'closet', 'window'];
     for (let i = hiddenSpots.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [hiddenSpots[i], hiddenSpots[j]] = [hiddenSpots[j], hiddenSpots[i]];
     }
-    // カギとマッチに割り当て
     items['カギ'].location = hiddenSpots[0];
     items['マッチ'].location = hiddenSpots[1];
+    items['ハンマー'].location = hiddenSpots[2];
+    items['バール'].location = hiddenSpots[3];
 }
 
-// 隠しアイテムを発見したかの汎用チェック
 function checkHiddenItem(spot, roomName) {
     let found = [];
     for (const key in items) {
         if (items[key].location === spot) {
-            items[key].location = roomName; // 部屋にアイテムが出現
+            items[key].location = roomName;
             found.push(items[key].name);
         }
     }
     if (found.length > 0) {
         printLog("ナカ カラ " + found.join(' ト ') + " ガ デテキタ！", COLORS.CYAN);
         drawCurrentRoom();
-    } else {
-        printLog("ナカ ニハ トクニ メボシイ モノ ハ ナイ。");
-    }
+    } else printLog("トクニ メボシイ モノ ハ ナイ。");
 }
 
 let cmdHistory = [];
@@ -256,7 +326,6 @@ function drawText(ctx, text, x, y, size, color, outline = false) {
     ctx.fillStyle = color; ctx.fillText(text, x, y);
 }
 
-// マップ用コンパス（通常の絵の画面からは削除）
 function drawCompass(ctx) {
     const cx = 590, cy = 40;
     ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; ctx.fillRect(cx - 35, cy - 35, 70, 70);
@@ -290,17 +359,16 @@ function drawTitle(ctx) {
 function drawMap(ctx) {
     ctx.fillStyle = COLORS.BLACK; ctx.fillRect(0, 0, 640, 400);
     ctx.textAlign = 'center'; drawText(ctx, "--- MAP ---", 320, 40, 24, COLORS.CYAN); 
-    drawCompass(ctx); // マップにはコンパスを描画
+    drawCompass(ctx);
     
-    // 2階は右上に描画して重なりを防ぐ
     const mapCoords = {
-        'front': { x: 320, y: 320 }, 'hall': { x: 320, y: 220 }, 'kitchen': { x: 180, y: 220 },
-        'dark_room': { x: 460, y: 220 }, 'study': { x: 320, y: 120 },
-        'corridor_2f': { x: 480, y: 120 }, 'kids_room': { x: 480, y: 40 }, 'bedroom': { x: 580, y: 120 }
+        'front': { x: 320, y: 340 }, 'hall': { x: 320, y: 250 }, 'kitchen': { x: 180, y: 250 },
+        'dining': { x: 180, y: 340 }, 'dark_room': { x: 460, y: 250 }, 'study': { x: 320, y: 160 },
+        'basement': { x: 460, y: 340 },
+        'corridor_2f': { x: 440, y: 140 }, 'kids_room': { x: 440, y: 60 }, 'bedroom': { x: 540, y: 140 },
+        'hidden_room': { x: 540, y: 60 }
     };
-
     ctx.strokeStyle = COLORS.WHITE; ctx.lineWidth = 4;
-    // 線引き
     for (const roomKey of state.visitedRooms) {
         const coords = mapCoords[roomKey]; const room = rooms[roomKey];
         ['キタ', 'ミナミ', 'ヒガシ', 'ニシ'].forEach(dir => {
@@ -310,7 +378,6 @@ function drawMap(ctx) {
             }
         });
     }
-    // 部屋描画
     for (const roomKey of state.visitedRooms) {
         const coords = mapCoords[roomKey]; const isCurrent = (roomKey === state.currentRoom);
         ctx.fillStyle = COLORS.BLUE; ctx.fillRect(coords.x - 40, coords.y - 30, 80, 60);
@@ -335,14 +402,14 @@ function drawMap(ctx) {
             drawPoly(ctx, [p1, p2, p3], COLORS.YELLOW, COLORS.BLACK);
         }
     }
-    drawText(ctx, "モドル ニハ ［ジッコウ］ ボタン", 320, 380, 16, COLORS.GREEN);
+    drawText(ctx, "モドル ニハ ［ジッコウ］ ボタン", 320, 390, 16, COLORS.GREEN);
 }
 
 // --- 部屋データ ---
 const rooms = {
     'front': {
         name: 'ヤカタ ノ マエ', desc: 'アナタ ハ フルイ ヤカタ ノ マエ ニ イル。キタ ニ トビラ ガ アル。',
-        examine: () => printLog("キ ノ トビラ ダ。"), exits: {},
+        examine: () => printLog("キ ノ トビラ ダ。"), exits: { 'キタ': null }, 
         draw: (ctx) => {
             drawPoly(ctx, [[0,0], [640,0], [640,300], [0,300]], COLORS.BLACK, null);
             drawPoly(ctx, [[0,300], [640,300], [640,400], [0,400]], COLORS.GREEN, null);
@@ -358,7 +425,7 @@ const rooms = {
         }
     },
     'hall': {
-        name: 'ゲンカン ホール', desc: 'ヒロイ ホール ダ。キタ、ニシ、ヒガシ ニ トビラ ガ アル。ミナミ ハ デグチ ダ。',
+        name: 'ゲンカン ホール', desc: 'ヒロイ ホール ダ。キタ、ニシ、ヒガシ ニ トビラ ガ アル。ミナミ ハ デグチ ダ。ウエ ヘノ カイダン ガ アル。',
         examine: () => printLog("トクニ カワッタ トコロ ハ ナイ。"),
         exits: { 'ミナミ': 'front', 'ニシ': 'kitchen', 'ヒガシ': 'dark_room', 'キタ': 'study', 'ウエ': 'corridor_2f' },
         draw: (ctx) => {
@@ -369,79 +436,106 @@ const rooms = {
             drawPoly(ctx, [[160,60], [480, 60], [480, 260], [160, 260]], COLORS.CYAN, COLORS.WHITE);
             drawPoly(ctx, [[0, 120], [80, 140], [80, 280], [0, 320]], COLORS.BLACK, COLORS.WHITE); // 西
             drawPoly(ctx, [[640, 120], [560, 140], [560, 280], [640, 320]], COLORS.BLACK, COLORS.WHITE); // 東
-            drawPoly(ctx, [[260, 140], [340, 140], [340, 260], [260, 260]], COLORS.BLACK, COLORS.WHITE); // 北（書斎）
-            // 階段（上へ）
-            drawPoly(ctx, [[400, 140], [480, 140], [480, 260], [400, 260]], COLORS.BLACK, COLORS.WHITE);
+            drawPoly(ctx, [[260, 140], [340, 140], [340, 260], [260, 260]], COLORS.BLACK, COLORS.WHITE); // 北
+            drawPoly(ctx, [[400, 140], [480, 140], [480, 260], [400, 260]], COLORS.BLACK, COLORS.WHITE); // 階段
             drawLine(ctx, 400, 240, 420, 240); drawLine(ctx, 420, 240, 420, 220); drawLine(ctx, 420, 220, 440, 220); drawLine(ctx, 440, 220, 440, 200); drawLine(ctx, 440, 200, 460, 200); drawLine(ctx, 460, 200, 460, 180); drawLine(ctx, 460, 180, 480, 180);
         }
     },
     'kitchen': {
-        name: 'ダイドコロ', desc: 'ダイドコロ ダ。ヒガシ ニ ホール ヘノ トビラ ガ アル。レイゾウコ ト テーブル ガ アル。',
+        name: 'ダイドコロ', desc: 'ダイドコロ ダ。ヒガシ ニ ホール ヘノ トビラ ガ アル。ミナミ ニモ トビラ ガ アル。レイゾウコ ト テーブル ガ アル。',
         examine: () => printLog("シラベル モノ オ シテイ シテ クダサイ。"),
-        exits: { 'ヒガシ': 'hall' },
+        exits: { 'ヒガシ': 'hall', 'ミナミ': 'dining' },
         draw: (ctx) => {
             drawPoly(ctx, [[0,0], [640,0], [640,250], [0,250]], COLORS.YELLOW, null);
             drawPoly(ctx, [[0,250], [640,250], [640,400], [0,400]], COLORS.CYAN, null);
-            // テーブル
             drawPoly(ctx, [[100, 250], [300, 250], [340, 320], [60, 320]], COLORS.MAGENTA, COLORS.WHITE); 
             drawPoly(ctx, [[120, 320], [140, 320], [140, 380], [120, 380]], COLORS.WHITE, COLORS.BLACK);
             drawPoly(ctx, [[260, 320], [280, 320], [280, 380], [260, 380]], COLORS.WHITE, COLORS.BLACK);
-            // 冷蔵庫
             if (state.flags.fridgeOpen) {
                 drawPoly(ctx, [[450, 80], [550, 80], [550, 280], [450, 280]], COLORS.WHITE, COLORS.BLACK); 
-                ctx.fillStyle = COLORS.BLACK; ctx.fillRect(460, 90, 80, 180); // 開いた庫内
-                drawPoly(ctx, [[550, 80], [600, 120], [600, 320], [550, 280]], COLORS.WHITE, COLORS.BLACK); // 扉
+                ctx.fillStyle = COLORS.BLACK; ctx.fillRect(460, 90, 80, 180);
+                drawPoly(ctx, [[550, 80], [600, 120], [600, 320], [550, 280]], COLORS.WHITE, COLORS.BLACK); 
             } else {
                 drawPoly(ctx, [[450, 80], [550, 80], [550, 280], [450, 280]], COLORS.WHITE, COLORS.BLACK); 
                 drawLine(ctx, 450, 180, 550, 180, COLORS.BLACK);
             }
         }
     },
+    'dining': {
+        name: 'ショクドウ', desc: 'ショクドウ ダ。キタ ニ ダイドコロ ヘノ トビラ ガ アル。ナガイ テーブル ガ アル。',
+        examine: () => printLog("シラベル モノ オ シテイ シテ クダサイ。"),
+        exits: { 'キタ': 'kitchen' },
+        draw: (ctx) => {
+            drawPoly(ctx, [[0,0], [640,0], [640,200], [0,200]], COLORS.GREEN, null);
+            drawPoly(ctx, [[0,200], [640,200], [640,400], [0,400]], COLORS.RED, null);
+            drawPoly(ctx, [[150, 240], [490, 240], [550, 300], [90, 300]], COLORS.YELLOW, COLORS.BLACK);
+            drawPoly(ctx, [[180, 300], [200, 300], [200, 380], [180, 380]], COLORS.WHITE, COLORS.BLACK);
+            drawPoly(ctx, [[440, 300], [460, 300], [460, 380], [440, 380]], COLORS.WHITE, COLORS.BLACK);
+        }
+    },
     'dark_room': {
-        name: 'クライ ヘヤ', desc: () => state.flags.darkRoomLight ? 'アカルク ナッタ。タカラバコ ガ アル。ニシ ニ トビラ ガ アル。' : 'クラク テ ナニモ ミエナイ。ニシ ニ トビラ ガ アル。',
+        name: 'クライ ヘヤ', desc: () => state.flags.darkRoomLight ? 'アカルク ナッタ。ユカ ニ トラップドア ガ アル。ニシ ニ トビラ ガ アル。' : 'クラク テ ナニモ ミエナイ。ニシ ニ トビラ ガ アル。',
         examine: () => printLog("シラベル モノ オ シテイ シテ クダサイ。"),
         exits: { 'ニシ': 'hall' },
         draw: (ctx) => {
             if (state.flags.darkRoomLight) {
                 drawPoly(ctx, [[0,0], [640,0], [640,300], [0,300]], COLORS.MAGENTA, null);
                 drawPoly(ctx, [[0,300], [640,300], [640,400], [0,400]], COLORS.YELLOW, null);
-                drawPoly(ctx, [[250, 250], [390, 250], [390, 300], [250, 300]], COLORS.RED, COLORS.WHITE);
-                drawPoly(ctx, [[250, 250], [270, 230], [410, 230], [390, 250]], COLORS.RED, COLORS.WHITE);
-                drawPoly(ctx, [[390, 250], [410, 230], [410, 280], [390, 300]], COLORS.RED, COLORS.WHITE);
-                if (state.flags.chestOpened) drawPoly(ctx, [[250, 250], [230, 190], [370, 190], [390, 250]], COLORS.RED, COLORS.WHITE);
-                else drawPoly(ctx, [[315, 260], [325, 260], [325, 270], [315, 270]], COLORS.BLACK, null);
+                drawPoly(ctx, [[260, 320], [380, 320], [420, 380], [220, 380]], COLORS.GREEN, COLORS.WHITE);
+                if (state.flags.trapdoorOpen) {
+                    ctx.fillStyle = COLORS.BLACK;
+                    drawPoly(ctx, [[270, 330], [370, 330], [400, 370], [240, 370]], COLORS.BLACK, null);
+                } else {
+                    drawLine(ctx, 320, 330, 320, 370, COLORS.BLACK);
+                }
             } else {
                 ctx.fillStyle = COLORS.BLACK; ctx.fillRect(0,0,640,400);
                 ctx.strokeStyle = COLORS.RED; ctx.beginPath(); ctx.arc(300, 200, 5, 0, Math.PI*2); ctx.arc(340, 200, 5, 0, Math.PI*2); ctx.stroke();
             }
         }
     },
+    'basement': {
+        name: 'チカシツ', desc: 'イシヅクリ ノ チカシツ ダ。タカラバコ ガ アル。ウエ ニ モドル カイダン ガ アル。',
+        examine: () => printLog("シラベル モノ オ シテイ シテ クダサイ。"),
+        exits: { 'ウエ': 'dark_room' },
+        draw: (ctx) => {
+            drawPoly(ctx, [[0,0], [640,0], [640,400], [0,400]], COLORS.BLACK, null);
+            drawPoly(ctx, [[100, 50], [540, 50], [540, 350], [100, 350]], COLORS.BLUE, COLORS.WHITE);
+            for(let i=100; i<350; i+=50) drawLine(ctx, 100, i, 540, i, COLORS.BLACK);
+            drawPoly(ctx, [[250, 250], [390, 250], [390, 300], [250, 300]], COLORS.RED, COLORS.WHITE);
+            drawPoly(ctx, [[250, 250], [270, 230], [410, 230], [390, 250]], COLORS.RED, COLORS.WHITE);
+            drawPoly(ctx, [[390, 250], [410, 230], [410, 280], [390, 300]], COLORS.RED, COLORS.WHITE);
+            if (state.flags.chestOpened) drawPoly(ctx, [[250, 250], [230, 190], [370, 190], [390, 250]], COLORS.RED, COLORS.WHITE);
+            else drawPoly(ctx, [[315, 260], [325, 260], [325, 270], [315, 270]], COLORS.BLACK, null);
+        }
+    },
     'study': {
-        name: 'ショサイ', desc: 'ホン ガ タクサン アル ショサイ ダ。ミナミ ニ トビラ ガ アル。',
+        name: 'ショサイ', desc: 'ホン ガ タクサン アル ショサイ ダ。ミナミ ニ トビラ ガ アル。ホンダナ ト ツクエ ガ アル。',
         examine: () => printLog("シラベル モノ オ シテイ シテ クダサイ。"),
         exits: { 'ミナミ': 'hall' },
         draw: (ctx) => {
             drawPoly(ctx, [[0,0], [640,0], [640,400], [0,400]], COLORS.GREEN, null);
-            drawPoly(ctx, [[100,100], [540,100], [540,300], [100,300]], COLORS.BLACK, COLORS.WHITE); // 奥壁
-            // 本棚
+            drawPoly(ctx, [[100,100], [540,100], [540,300], [100,300]], COLORS.BLACK, COLORS.WHITE);
             drawPoly(ctx, [[150, 120], [300, 120], [300, 300], [150, 300]], COLORS.YELLOW, COLORS.BLACK);
             for(let i=140; i<300; i+=30) drawLine(ctx, 150, i, 300, i, COLORS.BLACK);
             ctx.fillStyle = COLORS.RED; ctx.fillRect(160, 140, 10, 28); ctx.fillRect(190, 170, 15, 28);
             ctx.fillStyle = COLORS.BLUE; ctx.fillRect(180, 140, 12, 28); ctx.fillRect(220, 200, 20, 28);
+            drawPoly(ctx, [[350, 220], [500, 220], [500, 300], [350, 300]], COLORS.CYAN, COLORS.WHITE);
+            drawLine(ctx, 350, 250, 500, 250, COLORS.BLACK); drawLine(ctx, 425, 220, 425, 300, COLORS.BLACK);
         }
     },
     'corridor_2f': {
-        name: '2カイ ロウカ', desc: '2カイ ノ ロウカ ダ。キタ ト ヒガシ ニ トビラ ガ アル。シタ ヘ オリテイク カイダン ガ アル。',
+        name: '2カイ ロウカ', desc: '2カイ ノ ロウカ ダ。キタ ト ヒガシ ニ トビラ ガ アル。シタ ヘ オリテイク カイダン ト マド ガ アル。',
         examine: () => printLog("シラベル モノ オ シテイ シテ クダサイ。"),
         exits: { 'シタ': 'hall', 'キタ': 'kids_room', 'ヒガシ': 'bedroom' },
         draw: (ctx) => {
             drawPoly(ctx, [[0,0], [640,0], [640,400], [0,400]], COLORS.CYAN, null);
             drawPoly(ctx, [[150, 100], [490, 100], [490, 250], [150, 250]], COLORS.BLUE, COLORS.WHITE); 
-            // 階段穴（下へ）
-            drawPoly(ctx, [[200, 300], [440, 300], [380, 380], [260, 380]], COLORS.BLACK, COLORS.WHITE);
-            // ドア
+            drawPoly(ctx, [[200, 300], [440, 300], [380, 380], [260, 380]], COLORS.BLACK, COLORS.WHITE); // 階段
             drawPoly(ctx, [[280, 120], [360, 120], [360, 250], [280, 250]], COLORS.BLACK, COLORS.WHITE); // キタ
             drawPoly(ctx, [[550, 120], [640, 80], [640, 300], [550, 250]], COLORS.BLACK, COLORS.WHITE); // ヒガシ
+            drawPoly(ctx, [[260, 120], [340, 120], [340, 200], [260, 200]], COLORS.CYAN, COLORS.WHITE);
+            drawLine(ctx, 300, 120, 300, 200, COLORS.WHITE); drawLine(ctx, 260, 160, 340, 160, COLORS.WHITE);
         }
     },
     'kids_room': {
@@ -451,24 +545,35 @@ const rooms = {
         draw: (ctx) => {
             drawPoly(ctx, [[0,0], [640,0], [640,400], [0,400]], COLORS.MAGENTA, null); 
             drawPoly(ctx, [[0,250], [640,250], [640,400], [0,400]], COLORS.YELLOW, null); 
-            // おもちゃ箱
             drawPoly(ctx, [[400, 250], [500, 250], [500, 320], [400, 320]], COLORS.BLUE, COLORS.WHITE);
-            // 積み木
             drawPoly(ctx, [[200, 300], [240, 300], [240, 340], [200, 340]], COLORS.RED, COLORS.WHITE);
             drawPoly(ctx, [[220, 260], [260, 260], [260, 300], [220, 300]], COLORS.GREEN, COLORS.WHITE);
         }
     },
     'bedroom': {
-        name: 'シンシツ', desc: 'シンシツ ダ。ベッド ガ アル。ニシ ニ トビラ ガ アル。',
+        name: 'シンシツ', desc: 'シンシツ ダ。ベッド ト クローゼット ガ アル。ニシ ニ トビラ ガ アル。キタ ノ カベ ニ ヒビ ガ アル。',
         examine: () => printLog("シラベル モノ オ シテイ シテ クダサイ。"),
         exits: { 'ニシ': 'corridor_2f' },
         draw: (ctx) => {
             drawPoly(ctx, [[0,0], [640,0], [640,400], [0,400]], COLORS.BLUE, null); 
             drawPoly(ctx, [[0,250], [640,250], [640,400], [0,400]], COLORS.CYAN, null); 
-            // ベッド
             drawPoly(ctx, [[150, 220], [400, 220], [450, 320], [100, 320]], COLORS.MAGENTA, COLORS.WHITE);
-            drawPoly(ctx, [[400, 220], [400, 180], [450, 180], [450, 320]], COLORS.WHITE, COLORS.BLACK); // ヘッドボード
-            ctx.fillStyle = COLORS.WHITE; ctx.fillRect(180, 230, 80, 40); // 枕
+            drawPoly(ctx, [[400, 220], [400, 180], [450, 180], [450, 320]], COLORS.WHITE, COLORS.BLACK); 
+            ctx.fillStyle = COLORS.WHITE; ctx.fillRect(180, 230, 80, 40); 
+            drawPoly(ctx, [[500, 100], [600, 140], [600, 350], [500, 300]], COLORS.YELLOW, COLORS.BLACK);
+            drawLine(ctx, 550, 120, 550, 325, COLORS.BLACK);
+            drawLine(ctx, 540, 220, 540, 240, COLORS.BLACK); drawLine(ctx, 560, 220, 560, 240, COLORS.BLACK);
+            if (state.flags.wallBroken) drawPoly(ctx, [[250, 80], [350, 80], [350, 200], [250, 200]], COLORS.BLACK, null);
+            else { drawLine(ctx, 280, 120, 320, 160, COLORS.BLACK); drawLine(ctx, 320, 120, 290, 180, COLORS.BLACK); }
+        }
+    },
+    'hidden_room': {
+        name: 'カクシベヤ', desc: 'ホコリ マミレ ノ カクシベヤ ダ。ミナミ ニ ヌケアナ ガ アル。',
+        examine: () => printLog("トクニ カワッタ トコロ ハ ナイ。"),
+        exits: { 'ミナミ': 'bedroom' },
+        draw: (ctx) => {
+            drawPoly(ctx, [[0,0], [640,0], [640,400], [0,400]], COLORS.BLACK, null);
+            drawPoly(ctx, [[150, 150], [490, 150], [490, 350], [150, 350]], COLORS.GREEN, COLORS.WHITE);
         }
     }
 };
@@ -479,16 +584,14 @@ function drawItems(ctx) {
         drawPoly(ctx, [[200, 300], [300, 280], [320, 320], [220, 340]], COLORS.BLACK, COLORS.WHITE);
         ctx.textAlign = 'left'; drawText(ctx, "MEMO", 230, 320, 24, COLORS.WHITE);
     }
-    // カギとマッチは隠されている時は描画されない（発見されたらその部屋のlocationに変わるので描画される）
-    if (items['カギ'].location === state.currentRoom) {
-        drawPoly(ctx, [[320, 50], [340, 50], [340, 60], [330, 60], [330, 55], [320, 55]], COLORS.YELLOW, COLORS.BLACK);
-    }
-    if (items['マッチ'].location === state.currentRoom) {
-        drawLine(ctx, 200, 350, 220, 350, COLORS.WHITE); drawPoly(ctx, [[220, 348], [225, 348], [225, 352], [220, 352]], COLORS.RED, null);
-    }
-    if (items['タカラ'].location === state.currentRoom) {
-        drawPoly(ctx, [[300, 330], [340, 330], [320, 360]], COLORS.CYAN, COLORS.WHITE);
-    }
+    
+    const dItem = (name, drawFunc) => { if (items[name].location === state.currentRoom) drawFunc(); };
+    dItem('カギ', () => drawPoly(ctx, [[320, 350], [340, 350], [340, 360], [330, 360], [330, 355], [320, 355]], COLORS.YELLOW, COLORS.BLACK));
+    dItem('マッチ', () => { drawLine(ctx, 200, 350, 220, 350, COLORS.WHITE); drawPoly(ctx, [[220, 348], [225, 348], [225, 352], [220, 352]], COLORS.RED, null); });
+    dItem('ハンマー', () => { drawPoly(ctx, [[400,340], [440,340], [440,360], [400,360]], COLORS.BLACK, COLORS.WHITE); drawPoly(ctx, [[415,360], [425,360], [425,390], [415,390]], COLORS.YELLOW, COLORS.BLACK); });
+    dItem('バール', () => drawPoly(ctx, [[500, 320], [510, 320], [530, 380], [520, 380]], COLORS.RED, COLORS.WHITE));
+    dItem('タカラ', () => drawPoly(ctx, [[300, 330], [340, 330], [320, 360]], COLORS.CYAN, COLORS.WHITE));
+    dItem('キンカイ', () => drawPoly(ctx, [[300, 280], [360, 280], [380, 320], [280, 320]], COLORS.YELLOW, COLORS.BLACK));
 }
 
 function drawCurrentRoom() {
@@ -501,19 +604,31 @@ function drawCurrentRoom() {
     if (room && room.draw) { room.draw(ctx); drawItems(ctx); }
 
     if (state.screen === 'clear') {
-        ctx.fillStyle = COLORS.BLACK; ctx.fillRect(100, 160, 440, 80);
-        ctx.strokeStyle = COLORS.CYAN; ctx.strokeRect(100, 160, 440, 80);
+        ctx.fillStyle = COLORS.BLACK; ctx.fillRect(80, 150, 480, 100);
+        ctx.strokeStyle = COLORS.CYAN; ctx.strokeRect(80, 150, 480, 100);
         ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-        drawText(ctx, "CONGRATULATIONS!", 320, 210, 30, COLORS.CYAN);
+        drawText(ctx, "CONGRATULATIONS!", 320, 200, 30, COLORS.CYAN);
+        if (items['キンカイ'].location === 'inventory') drawText(ctx, "★ PERFECT CLEAR ★", 320, 235, 24, COLORS.YELLOW);
     }
 }
+
+// 画面タップでタイトルに戻る
+document.getElementById('screen').addEventListener('click', () => {
+    if (state.screen === 'clear') {
+        resetState();
+        cmdHistory = [];
+        document.getElementById('log-container').innerHTML = '';
+        drawCurrentRoom();
+        printLog("「スタート」ト イレテ クダサイ。", COLORS.GREEN);
+    }
+});
 
 // --- ログ・入力制御 ---
 function printLog(text, color = COLORS.WHITE) {
     const logDiv = document.getElementById('log-container');
     const p = document.createElement('p'); p.textContent = text; p.style.color = color;
     logDiv.appendChild(p);
-    setTimeout(() => { logDiv.scrollTop = logDiv.scrollHeight; }, 10);
+    setTimeout(scrollLogToBottom, 10);
 }
 
 function normalizeInput(str) {
@@ -529,6 +644,7 @@ function checkTyping() {
 }
 
 function showHistory() {
+    commitToggle();
     if (cmdHistory.length === 0) { printLog("リレキ ガ アリマセン。", COLORS.RED); return; }
     historyIndex++;
     if (historyIndex >= cmdHistory.length) historyIndex = 0;
@@ -538,23 +654,39 @@ function showHistory() {
 }
 
 function toggleOSKeyboard() {
+    commitToggle();
     const input = document.getElementById('cmd-input');
     const btn = document.getElementById('os-kb-btn');
+    const kbArea = document.getElementById('keyboard-area');
+    
     isOSEnabled = !isOSEnabled;
     if (isOSEnabled) {
         input.inputMode = "text";
         btn.style.backgroundColor = COLORS.GREEN; btn.style.color = '#000';
+        // OSキーボード時は仮想キーボードを隠し、キャンバスを小さくする
+        kbArea.style.display = 'none';
+        document.getElementById('screen').style.maxHeight = '20dvh';
         input.focus();
     } else {
         input.inputMode = "none";
         btn.style.backgroundColor = '#333'; btn.style.color = '#FFF';
+        kbArea.style.display = 'block';
+        document.getElementById('screen').style.maxHeight = '36dvh';
         input.blur();
     }
+    setTimeout(scrollLogToBottom, 150);
+}
+
+function submitCommand() {
+    const input = document.getElementById('cmd-input');
+    processCommand(input.value);
+    input.value = ''; input.classList.remove('typing');
 }
 
 const verbsList = ['キタ', 'ミナミ', 'ヒガシ', 'ニシ', 'ウエ', 'シタ', 'ミル', 'シラベル', 'トル', 'オトス', 'ツカウ', 'アケル', 'タタク', 'ハナシカケル', 'ヨム', 'モチモノ', 'コマンドリスト', 'スタート', 'マップ'];
 
 function processCommand(cmdStr) {
+    commitToggle();
     const normalizedCmd = normalizeInput(cmdStr);
     
     if (state.screen === 'map' && !normalizedCmd) { state.screen = 'play'; drawCurrentRoom(); return; }
@@ -569,7 +701,7 @@ function processCommand(cmdStr) {
     if (state.screen === 'title') {
         if (normalizedCmd === 'スタート') {
             state.screen = 'play'; 
-            initHiddenItems(); // アイテムをランダム配置
+            initHiddenItems(); 
             drawCurrentRoom(); 
             printLog("ゲーム スタート！", COLORS.GREEN); 
             printLog("【モクテキ】ヤカタ ニ ネムル「タカラ」オ ミツケダセ。", COLORS.CYAN); 
@@ -579,7 +711,7 @@ function processCommand(cmdStr) {
         } else printLog("「スタート」ト イレテ クダサイ。", COLORS.RED);
         return;
     }
-    if (state.screen === 'clear') { printLog("ゲーム ハ クリア ズミ デス。"); return; }
+    if (state.screen === 'clear') { printLog("ゲーム ハ クリア ズミ デス。ガメン オ タップ シテ クダサイ。"); return; }
 
     const parts = normalizedCmd.split(/[\s　]+/);
     let verb = "", noun = "";
@@ -619,7 +751,7 @@ function showCommandList() {
     printLog("--- コマンドリスト ---", COLORS.CYAN);
     printLog("【イドウ】\nキタ, ミナミ, ヒガシ, ニシ, ウエ, シタ", COLORS.WHITE);
     printLog("【ドウシ】\nミル, シラベル, トル, オトス, ツカウ, アケル, ヨム, タタク, ハナシカケル", COLORS.WHITE);
-    printLog("【メイシ】\nドア, トビラ, カギ, メモ, マッチ, タカラ, レイゾウコ, タカラバコ, テーブル, ホンダナ, オモチャ, ベッド, カイダン", COLORS.WHITE);
+    printLog("【メイシ】\nドア, トビラ, カギ, メモ, マッチ, タカラ, レイゾウコ, タカラバコ, テーブル, ホンダナ, オモチャ, ベッド, クローゼット, マド, カイダン, ハンマー, バール, カベ, ユカ, キンカイ", COLORS.WHITE);
     printLog("【ソノタ】\nマップ, モチモノ, コマンドリスト", COLORS.WHITE);
     printLog("----------------------", COLORS.CYAN);
 }
@@ -629,6 +761,7 @@ function look() {
     if (state.currentRoom === 'dark_room' && !state.flags.darkRoomLight) foundItems = [];
     if (foundItems.length > 0) printLog("ソコ ニ " + foundItems.join(' ト ') + " ガ アル。", COLORS.CYAN);
 }
+
 function examine(noun) {
     if (state.currentRoom === 'dark_room' && !state.flags.darkRoomLight) { printLog("クラク テ ナニモ ミエナイ。"); return; }
     if (noun) {
@@ -637,18 +770,28 @@ function examine(noun) {
         } else if (noun === 'レイゾウコ') {
             if (state.currentRoom === 'kitchen') printLog(state.flags.fridgeOpen ? "レイゾウコ ハ アイテイル。" : "シロイ レイゾウコ ダ。アケテミヨウ。"); else printLog("ココ ニハ ナイ。");
         } else if (noun === 'タカラバコ') {
-            if (state.currentRoom === 'dark_room') printLog(state.flags.chestOpened ? "タカラバコ ハ アイテイル。" : "タカラバコ ニハ カギ アナ ガ アル。"); else printLog("ココ ニハ ナイ。");
+            if (state.currentRoom === 'basement') printLog(state.flags.chestOpened ? "タカラバコ ハ アイテイル。" : "オモソウナ タカラバコ ダ。カギ アナ ガ アル。"); else printLog("ココ ニハ ナイ。");
         } else if (noun === 'メモ' && (items['メモ'].location === state.currentRoom || items['メモ'].location === 'inventory')) { printLog("カミキレ ダ。ナニカ カイテアル。ヨメ ソウダ。");
         } else if (noun === 'テーブル') {
-            if (state.currentRoom === 'kitchen') printLog("キ ノ テーブル ダ。ウエ ニハ ナニモ ナイ。"); else printLog("ココ ニハ ナイ。");
+            if (state.currentRoom === 'kitchen') { printLog("キ ノ テーブル ダ。ウエ ニハ ナニモ ナイ..."); checkHiddenItem('kitchen_table', 'kitchen'); } 
+            else if (state.currentRoom === 'dining') { printLog("ナガイ テーブル ダ。シタ オ シラベタ。"); checkHiddenItem('dining_table', 'dining'); }
+            else printLog("ココ ニハ ナイ。");
         } else if (noun === 'ホンダナ') {
             if (state.currentRoom === 'study') { printLog("ホンダナ オ シラベタ。"); checkHiddenItem('study_books', 'study'); } else printLog("ココ ニハ ナイ。");
-        } else if (noun === 'オモチャ') {
+        } else if (noun === 'オモチャ' || noun === 'オモチャバコ') {
             if (state.currentRoom === 'kids_room') { printLog("オモチャバコ オ シラベタ。"); checkHiddenItem('kids_toy', 'kids_room'); } else printLog("ココ ニハ ナイ。");
         } else if (noun === 'ベッド') {
             if (state.currentRoom === 'bedroom') { printLog("ベッド ノ シタ オ シラベタ。"); checkHiddenItem('bed', 'bedroom'); } else printLog("ココ ニハ ナイ。");
+        } else if (noun === 'マド') {
+            if (state.currentRoom === 'corridor_2f') { printLog("マド ノ ソト ハ クラヤミ ダ。マドワク オ シラベタ。"); checkHiddenItem('window', 'corridor_2f'); } else printLog("ココ ニハ ナイ。");
+        } else if (noun === 'クローゼット') {
+            if (state.currentRoom === 'bedroom') { printLog("クローゼット オ シラベタ。"); checkHiddenItem('closet', 'bedroom'); } else printLog("ココ ニハ ナイ。");
         } else if (noun === 'カイダン') {
-            if (state.currentRoom === 'hall') printLog("ウエ ヘ ト ツヅク カイダン ダ。"); else if (state.currentRoom === 'corridor_2f') printLog("シタ ヘ オリテイク カイダン ダ。"); else printLog("ココ ニハ ナイ。");
+            if (state.currentRoom === 'hall') { printLog("ウエ ヘ ト ツヅク カイダン ダ。ウラガワ オ シラベタ。"); checkHiddenItem('hall_stairs', 'hall'); } else if (state.currentRoom === 'corridor_2f') printLog("シタ ヘ オリテイク カイダン ダ。"); else printLog("ココ ニハ ナイ。");
+        } else if (noun === 'ユカ') {
+            if (state.currentRoom === 'dark_room' && state.flags.darkRoomLight) printLog(state.flags.trapdoorOpen ? "チカ ヘノ アナ ガ アイテイル。" : "ユカ ニ キ ノ トラップドア ガ アル。スキマ カラ アケラレソウダ。"); else printLog("トクニ カワッタ トコロ ハ ナイ。");
+        } else if (noun === 'カベ') {
+            if (state.currentRoom === 'bedroom') printLog(state.flags.wallBroken ? "カベ ニ オオキナ アナ ガ アイテイル。" : "キタ ノ カベ ニ ヒビ ガ イッテイル。"); else printLog("フツウ ノ カベ ダ。");
         } else if (items[noun] && (items[noun].location === state.currentRoom || items[noun].location === 'inventory')) { printLog(items[noun].name + " ダ。");
         } else printLog("ソコ ニハ ナニモ ナイ。");
     } else {
@@ -658,10 +801,10 @@ function examine(noun) {
 function read(noun) {
     if (noun === 'メモ' && (items['メモ'].location === state.currentRoom || items['メモ'].location === 'inventory')) printLog("『クラヤミ デハ ヒ オ トモセ。タカラ ハ ソノ オク ニ アル。』", COLORS.YELLOW); else printLog("ヨメナイ。");
 }
+
 function move(dir) {
     const room = rooms[state.currentRoom];
     if (room.exits[dir]) {
-        // ウエ、シタ 以外の場合は向きを変える
         if (['キタ','ミナミ','ヒガシ','ニシ'].includes(dir)) {
             if (dir === 'キタ') state.facing = 'N'; if (dir === 'ミナミ') state.facing = 'S';
             if (dir === 'ヒガシ') state.facing = 'E'; if (dir === 'ニシ') state.facing = 'W';
@@ -671,11 +814,13 @@ function move(dir) {
         drawCurrentRoom(); look();
         if (state.currentRoom === 'front' && items['タカラ'].location === 'inventory') {
             state.screen = 'clear'; drawCurrentRoom(); printLog("\n★☆★ オメデトウ！ タカラ オ モッテ ダッシュツ シタ！ ★☆★", COLORS.YELLOW);
+            printLog("ガメン オ タップ スルト タイトル ニ モドリマス。", COLORS.CYAN);
         }
     } else {
         if (state.currentRoom === 'front' && dir === 'キタ' && !state.flags.frontDoorOpen) printLog("トビラ ガ シマッテ イル。", COLORS.RED); else printLog("ソッチ ニハ イケナイ。");
     }
 }
+
 function take(noun) {
     if (!noun) { printLog("ナニ オ トル？"); return; }
     const item = items[noun];
@@ -686,22 +831,26 @@ function take(noun) {
         } else if (item.location === 'inventory') printLog("スデニ モッテイル。"); else printLog("ココ ニハ ナイ。");
     } else printLog("ソレ ハ トレナイ。");
 }
+
 function drop(noun) {
     const item = items[noun];
     if (item && item.location === 'inventory') { item.location = state.currentRoom; printLog(item.name + " オ オトシタ。"); drawCurrentRoom(); } else printLog("ソレ ハ モッテイナイ。");
 }
+
 function use(noun) {
     const item = items[noun];
     if (item && item.location === 'inventory') {
         if (noun === 'マッチ') {
-            if (state.currentRoom === 'dark_room' && !state.flags.darkRoomLight) { state.flags.darkRoomLight = true; printLog("マッチ オ スリ、アカリ オ ツケタ。ヘヤ ガ アカルク ナッタ！", COLORS.YELLOW); drawCurrentRoom(); look(); } else printLog("ココ デ ツカッテモ イミ ガ ナイ。");
+            if (state.currentRoom === 'dark_room' && !state.flags.darkRoomLight) { state.flags.darkRoomLight = true; printLog("マッチ オ スリ、アカリ オ ツケタ。ヘヤ ガ アカルク ナッタ！\nユカ ニ トラップドア ガ アル！", COLORS.YELLOW); drawCurrentRoom(); } else printLog("ココ デ ツカッテモ イミ ガ ナイ。");
         } else if (noun === 'カギ') {
-            if (state.currentRoom === 'dark_room' && state.flags.darkRoomLight) {
-                if (!state.flags.chestOpened) { state.flags.chestOpened = true; items['タカラ'].location = 'dark_room'; printLog("カギ ピッタリ ダ！ タカラバコ ガ アイタ！\nナカ カラ タカラ ガ アラワレタ！", COLORS.CYAN); drawCurrentRoom(); } else printLog("タカラバコ ハ モウ アイテイル。");
+            if (state.currentRoom === 'basement') {
+                if (!state.flags.chestOpened) { state.flags.chestOpened = true; items['タカラ'].location = 'basement'; printLog("カギ ピッタリ ダ！ タカラバコ ガ アイタ！\nナカ カラ タカラ ガ アラワレタ！", COLORS.CYAN); drawCurrentRoom(); } else printLog("タカラバコ ハ モウ アイテイル。");
             } else printLog("ココ デハ ツカエナイ。");
-        } else if (noun === 'タカラ') printLog("タカラ オ ナガメタ。マブシイ！", COLORS.CYAN); else printLog("ツカイカタ ガ ワカラナイ。");
+        } else if (noun === 'タカラ' || noun === 'キンカイ') printLog(item.name + " オ ナガメタ。マブシイ！", COLORS.CYAN);
+        else printLog("ツカイカタ ガ ワカラナイ。");
     } else printLog("ソレ ハ モッテイナイ。");
 }
+
 function open(noun) {
     if (noun === 'ドア' || noun === 'トビラ') {
         if (state.currentRoom === 'front') {
@@ -709,26 +858,45 @@ function open(noun) {
         } else printLog("アケラレナイ。");
     } else if (noun === 'レイゾウコ' && state.currentRoom === 'kitchen') {
         if (!state.flags.fridgeOpen) {
-            state.flags.fridgeOpen = true; printLog("レイゾウコ オ アケタ。"); drawCurrentRoom(); checkHiddenItem('fridge', 'kitchen');
+            state.flags.fridgeOpen = true; printLog("レイゾウコ オ アケタ。ナカ オ シラベタ。"); drawCurrentRoom(); checkHiddenItem('fridge', 'kitchen');
         } else printLog("スデニ アイテイル。");
-    } else if (noun === 'タカラバコ' && state.currentRoom === 'dark_room') {
-        if (!state.flags.darkRoomLight) { printLog("クラク テ ナニモ ミエナイ。"); return; }
+    } else if (noun === 'クローゼット' && state.currentRoom === 'bedroom') {
+        printLog("クローゼット オ アケタ。ナカ オ シラベタ。"); checkHiddenItem('closet', 'bedroom');
+    } else if (noun === 'ユカ') {
+        if (state.currentRoom === 'dark_room' && state.flags.darkRoomLight) {
+            if (!state.flags.trapdoorOpen) {
+                if (items['バール'].location === 'inventory') {
+                    state.flags.trapdoorOpen = true; rooms['dark_room'].exits['シタ'] = 'basement'; printLog("バール デ トラップドア オ コジアケタ！\nシタ ヘ ト ツヅク カイダン ガ アラワレタ。", COLORS.CYAN); drawCurrentRoom();
+                } else printLog("カタクテ アカナイ。ナニカ コジアケル モノ ガ ヒツヨウ ダ。", COLORS.RED);
+            } else printLog("スデニ アイテイル。");
+        } else printLog("ココ ニハ ナイ。");
+    } else if (noun === 'タカラバコ' && state.currentRoom === 'basement') {
         if (!state.flags.chestOpened) printLog("カギ ガ カカッテ イテ アカナイ！", COLORS.RED); else printLog("スデニ アイテイル。");
     } else printLog("ソレ ハ アケラレナイ。");
 }
-function hit(noun) { printLog(noun ? noun + " オ タタイタ。イタイ！" : "クウカン オ タタイタ。ムナシイ。"); }
+
+function hit(noun) { 
+    if (noun === 'カベ') {
+        if (state.currentRoom === 'bedroom') {
+            if (!state.flags.wallBroken) {
+                if (items['ハンマー'].location === 'inventory') {
+                    state.flags.wallBroken = true; rooms['bedroom'].exits['キタ'] = 'hidden_room'; printLog("ハンマー デ カベ オ トコトン タタイタ！\nカベ ガ クズレ、キタ ニ ヌケアナ ガ デキタ！", COLORS.CYAN); drawCurrentRoom();
+                } else printLog("スデ デハ コワセソウ ニ ナイ。", COLORS.RED);
+            } else printLog("スデニ コワレテイル。");
+        } else printLog("コノ カベ オ タタイテモ イミ ハ ナサソウダ。");
+    } else printLog(noun ? noun + " オ タタイタ。イタイ！" : "クウカン オ タタイタ。ムナシイ。"); 
+}
 function talk() { printLog("ダレモ ヘンジ オ シナイ..."); }
 function showInventory() { let held = Object.keys(items).filter(k => items[k].location === 'inventory'); if (held.length > 0) printLog("モチモノ: " + held.join('、'), COLORS.CYAN); else printLog("ナニモ モッテイナイ。"); }
 
 // --- UI操作 ---
-function execCmd(cmd) { const input = document.getElementById('cmd-input'); input.value = ''; input.classList.remove('typing'); processCommand(cmd); }
-function insertText(text) { const input = document.getElementById('cmd-input'); if (input.value && !input.value.endsWith(' ') && !input.value.endsWith('　')) input.value += ' '; input.value += text + ' '; input.classList.add('typing'); }
+function execCmd(cmd) { commitToggle(); const input = document.getElementById('cmd-input'); input.value = ''; input.classList.remove('typing'); processCommand(cmd); }
+function insertText(text) { commitToggle(); const input = document.getElementById('cmd-input'); if (input.value && !input.value.endsWith(' ') && !input.value.endsWith('　')) input.value += ' '; input.value += text + ' '; input.classList.add('typing'); }
 
-// --- カテゴリメニュー ---
 const cmdData = {
     'イドウ': [{text: 'キタ', action: () => execCmd('キタ'), type: 'other'},{text: 'ミナミ', action: () => execCmd('ミナミ'), type: 'other'},{text: 'ヒガシ', action: () => execCmd('ヒガシ'), type: 'other'},{text: 'ニシ', action: () => execCmd('ニシ'), type: 'other'},{text: 'ウエ', action: () => execCmd('ウエ'), type: 'other'},{text: 'シタ', action: () => execCmd('シタ'), type: 'other'}],
     'ドウシ': [{text: 'ミル', action: () => execCmd('ミル'), type: 'verb'},{text: 'シラベル', action: () => insertText('シラベル'), type: 'verb'},{text: 'トル', action: () => insertText('トル'), type: 'verb'},{text: 'ツカウ', action: () => insertText('ツカウ'), type: 'verb'},{text: 'アケル', action: () => insertText('アケル'), type: 'verb'},{text: 'ヨム', action: () => insertText('ヨム'), type: 'verb'},{text: 'タタク', action: () => insertText('タタク'), type: 'verb'},{text: 'オトス', action: () => insertText('オトス'), type: 'verb'}],
-    'メイシ': [{text: 'ドア', action: () => insertText('ドア'), type: 'noun'},{text: 'カギ', action: () => insertText('カギ'), type: 'noun'},{text: 'メモ', action: () => insertText('メモ'), type: 'noun'},{text: 'マッチ', action: () => insertText('マッチ'), type: 'noun'},{text: 'タカラ', action: () => insertText('タカラ'), type: 'noun'},{text: 'レイゾウコ', action: () => insertText('レイゾウコ'), type: 'noun'},{text: 'タカラバコ', action: () => insertText('タカラバコ'), type: 'noun'},{text: 'テーブル', action: () => insertText('テーブル'), type: 'noun'},{text: 'ホンダナ', action: () => insertText('ホンダナ'), type: 'noun'},{text: 'オモチャ', action: () => insertText('オモチャ'), type: 'noun'},{text: 'ベッド', action: () => insertText('ベッド'), type: 'noun'},{text: 'カイダン', action: () => insertText('カイダン'), type: 'noun'}],
+    'メイシ': [{text: 'ドア', action: () => insertText('ドア'), type: 'noun'},{text: 'カギ', action: () => insertText('カギ'), type: 'noun'},{text: 'メモ', action: () => insertText('メモ'), type: 'noun'},{text: 'マッチ', action: () => insertText('マッチ'), type: 'noun'},{text: 'ハンマー', action: () => insertText('ハンマー'), type: 'noun'},{text: 'バール', action: () => insertText('バール'), type: 'noun'},{text: 'タカラ', action: () => insertText('タカラ'), type: 'noun'},{text: 'キンカイ', action: () => insertText('キンカイ'), type: 'noun'},{text: 'カベ', action: () => insertText('カベ'), type: 'noun'},{text: 'ユカ', action: () => insertText('ユカ'), type: 'noun'},{text: 'レイゾウコ', action: () => insertText('レイゾウコ'), type: 'noun'},{text: 'タカラバコ', action: () => insertText('タカラバコ'), type: 'noun'},{text: 'テーブル', action: () => insertText('テーブル'), type: 'noun'},{text: 'ホンダナ', action: () => insertText('ホンダナ'), type: 'noun'},{text: 'オモチャ', action: () => insertText('オモチャ'), type: 'noun'},{text: 'ベッド', action: () => insertText('ベッド'), type: 'noun'},{text: 'クローゼット', action: () => insertText('クローゼット'), type: 'noun'},{text: 'マド', action: () => insertText('マド'), type: 'noun'},{text: 'カイダン', action: () => insertText('カイダン'), type: 'noun'}],
     'ソノタ': [{text: 'マップ', action: () => execCmd('マップ'), type: 'other'},{text: 'モチモノ', action: () => execCmd('モチモノ'), type: 'other'},{text: 'コマンド', action: () => execCmd('コマンドリスト'), type: 'other'}]
 };
 function showCmdCategory(catName) {
@@ -737,42 +905,33 @@ function showCmdCategory(catName) {
     cmdData[catName].forEach(item => { const btn = document.createElement('button'); btn.className = `item-btn ${item.type}`; btn.textContent = item.text; btn.onclick = item.action; container.appendChild(btn); });
 }
 
-// --- 新仮想キーボード構築 ---
+// --- ガラケー風仮想キーボード（トグル入力） ---
 const kbData = {
     'ア': ['ア','イ','ウ','エ','オ'], 'カ': ['カ','キ','ク','ケ','コ'], 'サ': ['サ','シ','ス','セ','ソ'],
     'タ': ['タ','チ','ツ','テ','ト'], 'ナ': ['ナ','ニ','ヌ','ネ','ノ'], 'ハ': ['ハ','ヒ','フ','ヘ','ホ'],
     'マ': ['マ','ミ','ム','メ','モ'], 'ヤ': ['ヤ','ユ','ヨ'], 'ラ': ['ラ','リ','ル','レ','ロ'],
     'ワ': ['ワ','ヲ','ン']
 };
-function initKeyboard() {
-    const kbTabs = document.getElementById('kb-tabs');
-    Object.keys(kbData).forEach(cat => {
-        const btn = document.createElement('button');
-        btn.className = 'cat-btn kb-cat-btn'; btn.id = `kbcat-${cat}`; btn.textContent = cat;
-        btn.onclick = () => showKbCategory(cat);
-        kbTabs.appendChild(btn);
-    });
-}
-function showKbCategory(catName) {
-    const btn = document.getElementById(`kbcat-${catName}`);
-    const isAlreadyActive = btn.classList.contains('active');
+let toggleState = { active: false, cat: '', index: 0 };
 
-    document.querySelectorAll('.kb-cat-btn').forEach(b => b.classList.toggle('active', b.id === `kbcat-${catName}`));
-    
-    // ダブルタップ（既にアクティブな状態でもう一度押された）場合は先頭の文字を入力
-    if (isAlreadyActive) {
-        typeChar(catName);
-        return;
+function commitToggle() { toggleState.active = false; }
+
+function handleKbToggle(event, cat) {
+    event.preventDefault(); event.stopPropagation();
+    const input = document.getElementById('cmd-input');
+    if (toggleState.active && toggleState.cat === cat) {
+        toggleState.index = (toggleState.index + 1) % kbData[cat].length;
+        input.value = input.value.slice(0, -1) + kbData[cat][toggleState.index];
+    } else {
+        commitToggle();
+        toggleState.active = true; toggleState.cat = cat; toggleState.index = 0;
+        input.value += kbData[cat][0];
     }
-
-    const container = document.getElementById('kb-items'); container.innerHTML = '';
-    kbData[catName].forEach(char => {
-        const btn = document.createElement('button'); btn.className = 'item-btn kb-char'; btn.textContent = char;
-        btn.onclick = () => typeChar(char); container.appendChild(btn);
-    });
+    checkTyping();
 }
 
-function typeChar(char) {
+function typeSpecial(char) {
+    commitToggle();
     const input = document.getElementById('cmd-input');
     if (char === 'BS') input.value = input.value.slice(0, -1);
     else if (char === '゛') { const map={'カ':'ガ','キ':'ギ','ク':'グ','ケ':'ゲ','コ':'ゴ','サ':'ザ','シ':'ジ','ス':'ズ','セ':'ゼ','ソ':'ゾ','タ':'ダ','チ':'ヂ','ツ':'ヅ','テ':'デ','ト':'ド','ハ':'バ','ヒ':'ビ','フ':'ブ','ヘ':'ベ','ホ':'ボ'}; if(map[input.value.slice(-1)]) input.value = input.value.slice(0, -1) + map[input.value.slice(-1)]; }
@@ -783,15 +942,21 @@ function typeChar(char) {
     checkTyping();
 }
 
-document.getElementById('cmd-form').onsubmit = (e) => {
-    e.preventDefault(); const input = document.getElementById('cmd-input');
-    processCommand(input.value); input.value = ''; input.classList.remove('typing');
+// BS長押し（リピート）処理
+let bsInterval = null; let bsTimeout = null;
+const startBS = (e) => {
+    e.preventDefault(); typeSpecial('BS');
+    bsTimeout = setTimeout(() => { bsInterval = setInterval(() => { typeSpecial('BS'); }, 80); }, 300);
 };
+const stopBS = (e) => { e.preventDefault(); clearTimeout(bsTimeout); clearInterval(bsInterval); };
+const bsBtn = document.getElementById('bs-btn');
+bsBtn.addEventListener('mousedown', startBS); bsBtn.addEventListener('touchstart', startBS, {passive: false});
+['mouseup', 'mouseleave', 'touchend', 'touchcancel'].forEach(ev => bsBtn.addEventListener(ev, stopBS));
+
+document.addEventListener('click', (e) => { if (!e.target.classList.contains('kb-toggle-btn')) commitToggle(); });
 
 window.onload = () => {
-    initKeyboard();
     showCmdCategory('イドウ');
-    showKbCategory('ア'); 
     drawCurrentRoom();
     printLog("「スタート」ト イレテ クダサイ。", COLORS.GREEN);
 };
