@@ -32,18 +32,17 @@
         box-sizing: border-box;
         background-color: var(--c-bg);
     }
-    /* グラフィック画面 */
+    /* グラフィック画面（縮小しないよう固定） */
     canvas {
         width: 100%;
         height: auto;
-        max-height: 36dvh; 
+        max-height: 38vh; 
         object-fit: contain;
         background-color: var(--c-bg);
         border-bottom: 2px solid var(--c-white);
         image-rendering: pixelated;
-        flex: 0 1 auto;
+        flex: 0 0 auto;
         cursor: pointer;
-        transition: max-height 0.2s ease-out; /* サイズ変更を滑らかに */
     }
     
     /* コマンド入力フォーム */
@@ -177,9 +176,6 @@
             <button type="button" class="action-btn" id="os-kb-btn" onclick="toggleOSKeyboard()" title="OSキーボード切替">⌨️</button>
             <button type="button" class="action-btn" onclick="showHistory()" title="履歴呼び出し">履歴</button>
         </div>
-        <div class="form-row" id="bottom-actions-top" style="display: none;">
-            <!-- OSキーボード使用時は下のボタンが隠れるため、ここにも一時的に表示させる場合用ですが今回は下部固定で処理 -->
-        </div>
     </form>
     
     <!-- メッセージ -->
@@ -187,17 +183,18 @@
     
     <!-- コントロールパネル -->
     <div id="controls">
-        <!-- コマンドカテゴリタブ (OSキーボード時も残る) -->
-        <div class="scroll-row" id="cmd-tabs" style="display: flex;">
-            <button class="cat-btn cmd-cat-btn" id="cat-イドウ" onclick="showCmdCategory('イドウ')">イドウ</button>
-            <button class="cat-btn cmd-cat-btn" id="cat-ドウシ" onclick="showCmdCategory('ドウシ')">ドウシ</button>
-            <button class="cat-btn cmd-cat-btn" id="cat-メイシ" onclick="showCmdCategory('メイシ')">メイシ</button>
-            <button class="cat-btn cmd-cat-btn" id="cat-ソノタ" onclick="showCmdCategory('ソノタ')">ソノタ</button>
+        <!-- コマンドカテゴリタブ (OSキーボード使用時にトグルで隠す対象) -->
+        <div id="cmd-section" style="display: flex; flex-direction: column; gap: 4px;">
+            <div class="scroll-row" id="cmd-tabs" style="display: flex;">
+                <button class="cat-btn cmd-cat-btn" id="cat-イドウ" onclick="showCmdCategory('イドウ')">イドウ</button>
+                <button class="cat-btn cmd-cat-btn" id="cat-ドウシ" onclick="showCmdCategory('ドウシ')">ドウシ</button>
+                <button class="cat-btn cmd-cat-btn" id="cat-メイシ" onclick="showCmdCategory('メイシ')">メイシ</button>
+                <button class="cat-btn cmd-cat-btn" id="cat-ソノタ" onclick="showCmdCategory('ソノタ')">ソノタ</button>
+            </div>
+            <div id="cmd-items" class="scroll-row"></div>
         </div>
-        
-        <div id="cmd-items" class="scroll-row"></div>
 
-        <!-- 仮想キーボード領域 (OSキーボード時は隠れる) -->
+        <!-- 仮想キーボード領域 (OSキーボード時は完全に隠れる) -->
         <div id="keyboard-area">
             <div class="special-keys" id="special-keys-container">
                 <button class="special-btn" onclick="typeSpecial('゛')">゛</button>
@@ -221,7 +218,7 @@
                 <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'ワ')">ワ行</button>
             </div>
             
-            <!-- 下部の履歴と実行ボタン (OSキーボード時は隠れる) -->
+            <!-- 下部の履歴と実行ボタン -->
             <div id="bottom-actions">
                 <button type="button" class="bottom-btn btn-history" onclick="showHistory()">履歴</button>
                 <button type="button" class="bottom-btn btn-submit" onclick="submitCommand()">実行</button>
@@ -231,7 +228,7 @@
 </div>
 
 <script>
-// --- iOSキーボード等による画面サイズ縮小への追従とスクロール対策 ---
+// --- iOSキーボードスクロール対策 ---
 const scrollLogToBottom = () => {
     const logDiv = document.getElementById('log-container');
     if (logDiv) logDiv.scrollTop = logDiv.scrollHeight;
@@ -277,7 +274,6 @@ resetState();
 
 // --- アイテムのランダム配置（難易度UP） ---
 function initHiddenItems() {
-    // 隠し場所候補 (1Fと2Fから満遍なく)
     const hiddenSpots = ['fridge', 'kitchen_table', 'dining_table', 'study_books', 'hall_stairs', 'kids_toy', 'bed', 'closet', 'window'];
     for (let i = hiddenSpots.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -306,6 +302,7 @@ function checkHiddenItem(spot, roomName) {
 let cmdHistory = [];
 let historyIndex = -1;
 let isOSEnabled = false;
+let isOSViewToggled = false; // OSキーボード時にコマンドタブを隠すフラグ
 
 // --- 描画系ユーティリティ ---
 function drawPoly(ctx, points, fillColor, strokeColor = COLORS.WHITE) {
@@ -409,7 +406,7 @@ function drawMap(ctx) {
 const rooms = {
     'front': {
         name: 'ヤカタ ノ マエ', desc: 'アナタ ハ フルイ ヤカタ ノ マエ ニ イル。キタ ニ トビラ ガ アル。',
-        examine: () => printLog("キ ノ トビラ ダ。"), exits: { 'キタ': null }, 
+        examine: () => printLog("トクニ カワッタ トコロ ハ ナイ。"), exits: { 'キタ': null }, 
         draw: (ctx) => {
             drawPoly(ctx, [[0,0], [640,0], [640,300], [0,300]], COLORS.BLACK, null);
             drawPoly(ctx, [[0,300], [640,300], [640,400], [0,400]], COLORS.GREEN, null);
@@ -443,7 +440,7 @@ const rooms = {
     },
     'kitchen': {
         name: 'ダイドコロ', desc: 'ダイドコロ ダ。ヒガシ ニ ホール ヘノ トビラ ガ アル。ミナミ ニモ トビラ ガ アル。レイゾウコ ト テーブル ガ アル。',
-        examine: () => printLog("シラベル モノ オ シテイ シテ クダサイ。"),
+        examine: () => printLog("トクニ カワッタ トコロ ハ ナイ。"),
         exits: { 'ヒガシ': 'hall', 'ミナミ': 'dining' },
         draw: (ctx) => {
             drawPoly(ctx, [[0,0], [640,0], [640,250], [0,250]], COLORS.YELLOW, null);
@@ -463,7 +460,7 @@ const rooms = {
     },
     'dining': {
         name: 'ショクドウ', desc: 'ショクドウ ダ。キタ ニ ダイドコロ ヘノ トビラ ガ アル。ナガイ テーブル ガ アル。',
-        examine: () => printLog("シラベル モノ オ シテイ シテ クダサイ。"),
+        examine: () => printLog("トクニ カワッタ トコロ ハ ナイ。"),
         exits: { 'キタ': 'kitchen' },
         draw: (ctx) => {
             drawPoly(ctx, [[0,0], [640,0], [640,200], [0,200]], COLORS.GREEN, null);
@@ -475,7 +472,7 @@ const rooms = {
     },
     'dark_room': {
         name: 'クライ ヘヤ', desc: () => state.flags.darkRoomLight ? 'アカルク ナッタ。ユカ ニ トラップドア ガ アル。ニシ ニ トビラ ガ アル。' : 'クラク テ ナニモ ミエナイ。ニシ ニ トビラ ガ アル。',
-        examine: () => printLog("シラベル モノ オ シテイ シテ クダサイ。"),
+        examine: () => printLog("トクニ カワッタ トコロ ハ ナイ。"),
         exits: { 'ニシ': 'hall' },
         draw: (ctx) => {
             if (state.flags.darkRoomLight) {
@@ -496,7 +493,7 @@ const rooms = {
     },
     'basement': {
         name: 'チカシツ', desc: 'イシヅクリ ノ チカシツ ダ。タカラバコ ガ アル。ウエ ニ モドル カイダン ガ アル。',
-        examine: () => printLog("シラベル モノ オ シテイ シテ クダサイ。"),
+        examine: () => printLog("トクニ カワッタ トコロ ハ ナイ。"),
         exits: { 'ウエ': 'dark_room' },
         draw: (ctx) => {
             drawPoly(ctx, [[0,0], [640,0], [640,400], [0,400]], COLORS.BLACK, null);
@@ -511,7 +508,7 @@ const rooms = {
     },
     'study': {
         name: 'ショサイ', desc: 'ホン ガ タクサン アル ショサイ ダ。ミナミ ニ トビラ ガ アル。ホンダナ ト ツクエ ガ アル。',
-        examine: () => printLog("シラベル モノ オ シテイ シテ クダサイ。"),
+        examine: () => printLog("トクニ カワッタ トコロ ハ ナイ。"),
         exits: { 'ミナミ': 'hall' },
         draw: (ctx) => {
             drawPoly(ctx, [[0,0], [640,0], [640,400], [0,400]], COLORS.GREEN, null);
@@ -526,7 +523,7 @@ const rooms = {
     },
     'corridor_2f': {
         name: '2カイ ロウカ', desc: '2カイ ノ ロウカ ダ。キタ ト ヒガシ ニ トビラ ガ アル。シタ ヘ オリテイク カイダン ト マド ガ アル。',
-        examine: () => printLog("シラベル モノ オ シテイ シテ クダサイ。"),
+        examine: () => printLog("トクニ カワッタ トコロ ハ ナイ。"),
         exits: { 'シタ': 'hall', 'キタ': 'kids_room', 'ヒガシ': 'bedroom' },
         draw: (ctx) => {
             drawPoly(ctx, [[0,0], [640,0], [640,400], [0,400]], COLORS.CYAN, null);
@@ -540,7 +537,7 @@ const rooms = {
     },
     'kids_room': {
         name: 'コドモ ヘヤ', desc: 'コドモ ヘヤ ダ。オモチャバコ ガ アル。ミナミ ニ トビラ ガ アル。',
-        examine: () => printLog("シラベル モノ オ シテイ シテ クダサイ。"),
+        examine: () => printLog("トクニ カワッタ トコロ ハ ナイ。"),
         exits: { 'ミナミ': 'corridor_2f' },
         draw: (ctx) => {
             drawPoly(ctx, [[0,0], [640,0], [640,400], [0,400]], COLORS.MAGENTA, null); 
@@ -552,7 +549,7 @@ const rooms = {
     },
     'bedroom': {
         name: 'シンシツ', desc: 'シンシツ ダ。ベッド ト クローゼット ガ アル。ニシ ニ トビラ ガ アル。キタ ノ カベ ニ ヒビ ガ アル。',
-        examine: () => printLog("シラベル モノ オ シテイ シテ クダサイ。"),
+        examine: () => printLog("トクニ カワッタ トコロ ハ ナイ。"),
         exits: { 'ニシ': 'corridor_2f' },
         draw: (ctx) => {
             drawPoly(ctx, [[0,0], [640,0], [640,400], [0,400]], COLORS.BLUE, null); 
@@ -612,7 +609,6 @@ function drawCurrentRoom() {
     }
 }
 
-// 画面タップでタイトルに戻る
 document.getElementById('screen').addEventListener('click', () => {
     if (state.screen === 'clear') {
         resetState();
@@ -653,6 +649,8 @@ function showHistory() {
     checkTyping();
 }
 
+let osViewToggle = false;
+
 function toggleOSKeyboard() {
     commitToggle();
     const input = document.getElementById('cmd-input');
@@ -663,15 +661,15 @@ function toggleOSKeyboard() {
     if (isOSEnabled) {
         input.inputMode = "text";
         btn.style.backgroundColor = COLORS.GREEN; btn.style.color = '#000';
-        // OSキーボード時は仮想キーボードを隠し、キャンバスを小さくする
         kbArea.style.display = 'none';
-        document.getElementById('screen').style.maxHeight = '20dvh';
+        osViewToggle = false;
+        document.getElementById('cmd-section').style.display = 'flex';
         input.focus();
     } else {
         input.inputMode = "none";
         btn.style.backgroundColor = '#333'; btn.style.color = '#FFF';
         kbArea.style.display = 'block';
-        document.getElementById('screen').style.maxHeight = '36dvh';
+        document.getElementById('cmd-section').style.display = 'flex';
         input.blur();
     }
     setTimeout(scrollLogToBottom, 150);
@@ -679,11 +677,40 @@ function toggleOSKeyboard() {
 
 function submitCommand() {
     const input = document.getElementById('cmd-input');
+    
+    // OSキーボードが出ている状態で、入力が空の時に実行を押すと表示切り替え（トグル）
+    if (isOSEnabled && !input.value) {
+        osViewToggle = !osViewToggle;
+        const cmdSection = document.getElementById('cmd-section');
+        if (osViewToggle) {
+            cmdSection.style.display = 'none'; // コマンドタブを隠してログを広く見せる
+        } else {
+            cmdSection.style.display = 'flex'; // コマンドタブを表示する
+        }
+        setTimeout(scrollLogToBottom, 10);
+        return;
+    }
+
     processCommand(input.value);
     input.value = ''; input.classList.remove('typing');
 }
 
-const verbsList = ['キタ', 'ミナミ', 'ヒガシ', 'ニシ', 'ウエ', 'シタ', 'ミル', 'シラベル', 'トル', 'オトス', 'ツカウ', 'アケル', 'タタク', 'ハナシカケル', 'ヨム', 'モチモノ', 'コマンドリスト', 'スタート', 'マップ'];
+const verbsList = ['キタ', 'ミナミ', 'ヒガシ', 'ニシ', 'ウエ', 'シタ', 'マエ', 'ミギ', 'ヒダリ', 'ウシロ', 'ミル', 'シラベル', 'トル', 'オトス', 'ツカウ', 'アケル', 'タタク', 'ハナシカケル', 'ヨム', 'モチモノ', 'コマンドリスト', 'スタート', 'マップ'];
+
+// 相対方向の計算
+function getAbsoluteDir(relDir) {
+    const dirs = ['N', 'E', 'S', 'W'];
+    const idx = dirs.indexOf(state.facing);
+    let target = '';
+    if (relDir === 'マエ') target = dirs[idx];
+    else if (relDir === 'ミギ') target = dirs[(idx + 1) % 4];
+    else if (relDir === 'ウシロ') target = dirs[(idx + 2) % 4];
+    else if (relDir === 'ヒダリ') target = dirs[(idx + 3) % 4];
+    
+    if(target === 'N') return 'キタ'; if(target === 'S') return 'ミナミ';
+    if(target === 'E') return 'ヒガシ'; if(target === 'W') return 'ニシ';
+    return relDir;
+}
 
 function processCommand(cmdStr) {
     commitToggle();
@@ -725,8 +752,9 @@ function processCommand(cmdStr) {
     if (state.screen === 'map' && verb !== 'マップ') { state.screen = 'play'; drawCurrentRoom(); }
 
     switch (verb) {
-        case 'キタ': case 'ミナミ': case 'ヒガシ': case 'ニシ': case 'ウエ': case 'シタ': move(verb); break;
-        case 'ミル': look(); break;
+        case 'キタ': case 'ミナミ': case 'ヒガシ': case 'ニシ': case 'ウエ': case 'シタ':
+        case 'マエ': case 'ミギ': case 'ヒダリ': case 'ウシロ': move(verb); break;
+        case 'ミル': look(noun); break;
         case 'シラベル': examine(noun); break;
         case 'トル': take(noun); break;
         case 'オトス': drop(noun); break;
@@ -745,71 +773,119 @@ function processCommand(cmdStr) {
 // --- 各アクション処理 ---
 function showMap() {
     if (state.screen === 'map') return;
-    state.screen = 'map'; drawCurrentRoom(); printLog("マップ オ ヒライタ。モドル ニハ ［ジッコウ］ ボタン。", COLORS.CYAN);
+    state.screen = 'map'; drawCurrentRoom(); printLog("マップ オ ヒライタ。モドル ニハ コマンド ヲ カラ ニシテ ［ジッコウ］ ボタン。", COLORS.CYAN);
 }
 function showCommandList() { 
     printLog("--- コマンドリスト ---", COLORS.CYAN);
-    printLog("【イドウ】\nキタ, ミナミ, ヒガシ, ニシ, ウエ, シタ", COLORS.WHITE);
+    printLog("【イドウ】\nキタ, ミナミ, ヒガシ, ニシ, ウエ, シタ\nマエ, ウシロ, ミギ, ヒダリ", COLORS.WHITE);
     printLog("【ドウシ】\nミル, シラベル, トル, オトス, ツカウ, アケル, ヨム, タタク, ハナシカケル", COLORS.WHITE);
-    printLog("【メイシ】\nドア, トビラ, カギ, メモ, マッチ, タカラ, レイゾウコ, タカラバコ, テーブル, ホンダナ, オモチャ, ベッド, クローゼット, マド, カイダン, ハンマー, バール, カベ, ユカ, キンカイ", COLORS.WHITE);
+    printLog("【メイシ】\nヘヤ, ドア, トビラ, カギ, メモ, マッチ, タカラ, レイゾウコ, タカラバコ, テーブル, ホンダナ, オモチャ, ベッド, クローゼット, マド, カイダン, ハンマー, バール, カベ, ユカ, キンカイ", COLORS.WHITE);
     printLog("【ソノタ】\nマップ, モチモノ, コマンドリスト", COLORS.WHITE);
     printLog("----------------------", COLORS.CYAN);
 }
-function look() {
-    const room = rooms[state.currentRoom]; printLog(typeof room.desc === 'function' ? room.desc() : room.desc);
-    let foundItems = Object.keys(items).filter(k => items[k].location === state.currentRoom);
-    if (state.currentRoom === 'dark_room' && !state.flags.darkRoomLight) foundItems = [];
-    if (foundItems.length > 0) printLog("ソコ ニ " + foundItems.join(' ト ') + " ガ アル。", COLORS.CYAN);
+
+function look(noun) {
+    if (!noun || noun === 'ヘヤ') {
+        const room = rooms[state.currentRoom]; printLog(typeof room.desc === 'function' ? room.desc() : room.desc);
+        let foundItems = Object.keys(items).filter(k => items[k].location === state.currentRoom);
+        if (state.currentRoom === 'dark_room' && !state.flags.darkRoomLight) foundItems = [];
+        if (foundItems.length > 0) printLog("ソコ ニ " + foundItems.join(' ト ') + " ガ アル。", COLORS.CYAN);
+    } else {
+        if (state.currentRoom === 'dark_room' && !state.flags.darkRoomLight) { printLog("クラク テ ナニモ ミエナイ。"); return; }
+        
+        if (noun === 'ドア' || noun === 'トビラ') {
+            if (state.currentRoom === 'front') printLog(state.flags.frontDoorOpen ? "アイテイル トビラ ダ。" : "キ ノ トビラ ダ。");
+            else printLog("フツウ ノ ドア ダ。");
+        } else if (noun === 'レイゾウコ' && state.currentRoom === 'kitchen') {
+            printLog(state.flags.fridgeOpen ? "アイテイル レイゾウコ ダ。" : "シロイ レイゾウコ ダ。");
+        } else if (noun === 'タカラバコ' && state.currentRoom === 'basement') {
+            printLog(state.flags.chestOpened ? "アイテイル タカラバコ ダ。" : "オモソウナ タカラバコ ダ。");
+        } else if (noun === 'メモ' && (items['メモ'].location === state.currentRoom || items['メモ'].location === 'inventory')) {
+            printLog("フルイ カミキレ ダ。");
+        } else if (noun === 'テーブル') {
+            if (state.currentRoom === 'kitchen') printLog("キ ノ テーブル ダ。");
+            else if (state.currentRoom === 'dining') printLog("ナガイ テーブル ダ。");
+            else printLog("ココ ニハ ナイ。");
+        } else if (noun === 'ホンダナ' && state.currentRoom === 'study') {
+            printLog("ホン ガ ギッシリ ツマッタ ホンダナ ダ。");
+        } else if ((noun === 'オモチャ' || noun === 'オモチャバコ') && state.currentRoom === 'kids_room') {
+            printLog("カラフルナ オモチャバコ ダ。");
+        } else if (noun === 'ベッド' && state.currentRoom === 'bedroom') {
+            printLog("オオキナ ベッド ダ。");
+        } else if (noun === 'マド' && state.currentRoom === 'corridor_2f') {
+            printLog("ソト ハ クラヤミ デ ナニモ ミエナイ マド ダ。");
+        } else if (noun === 'クローゼット' && state.currentRoom === 'bedroom') {
+            printLog("キ ノ クローゼット ダ。");
+        } else if (noun === 'カイダン') {
+            if (state.currentRoom === 'hall') printLog("ウエ ニ ツヅク カイダン ダ。");
+            else if (state.currentRoom === 'corridor_2f') printLog("シタ ニ ツヅク カイダン ダ。");
+            else printLog("ココ ニハ ナイ。");
+        } else if (noun === 'ユカ') {
+            if (state.currentRoom === 'dark_room' && state.flags.darkRoomLight) printLog(state.flags.trapdoorOpen ? "チカ ヘノ アナ ガ アイテイル。" : "ユカ ニ キ ノ トラップドア ガ アル。");
+            else printLog("フツウ ノ ユカ ダ。");
+        } else if (noun === 'カベ') {
+            if (state.currentRoom === 'bedroom') printLog(state.flags.wallBroken ? "カベ ニ オオキナ アナ ガ アイテイル。" : "キタ ノ カベ ニ ヒビ ガ アル。");
+            else printLog("フツウ ノ カベ ダ。");
+        } else if (items[noun] && (items[noun].location === state.currentRoom || items[noun].location === 'inventory')) {
+            printLog(items[noun].name + " ダ。");
+        } else {
+            printLog("ソコ ニハ ナニモ ナイ。");
+        }
+    }
 }
 
 function examine(noun) {
     if (state.currentRoom === 'dark_room' && !state.flags.darkRoomLight) { printLog("クラク テ ナニモ ミエナイ。"); return; }
-    if (noun) {
+    if (!noun || noun === 'ヘヤ') {
+        const room = rooms[state.currentRoom]; if (room.examine) { room.examine(); drawCurrentRoom(); } else look();
+    } else {
         if (noun === 'ドア' || noun === 'トビラ') {
             if (state.currentRoom === 'front') printLog(state.flags.frontDoorOpen ? "トビラ ハ アイテイル。" : "キ ノ トビラ ダ。カギ ハ カカッテ イナイ ヨウダ。"); else printLog("フツウ ノ ドア ダ。");
         } else if (noun === 'レイゾウコ') {
-            if (state.currentRoom === 'kitchen') printLog(state.flags.fridgeOpen ? "レイゾウコ ハ アイテイル。" : "シロイ レイゾウコ ダ。アケテミヨウ。"); else printLog("ココ ニハ ナイ。");
+            if (state.currentRoom === 'kitchen') printLog(state.flags.fridgeOpen ? "レイゾウコ ハ アイテイル。" : "アケナイト ナカ ハ ワカラナイ。"); else printLog("ココ ニハ ナイ。");
         } else if (noun === 'タカラバコ') {
             if (state.currentRoom === 'basement') printLog(state.flags.chestOpened ? "タカラバコ ハ アイテイル。" : "オモソウナ タカラバコ ダ。カギ アナ ガ アル。"); else printLog("ココ ニハ ナイ。");
         } else if (noun === 'メモ' && (items['メモ'].location === state.currentRoom || items['メモ'].location === 'inventory')) { printLog("カミキレ ダ。ナニカ カイテアル。ヨメ ソウダ。");
         } else if (noun === 'テーブル') {
-            if (state.currentRoom === 'kitchen') { printLog("キ ノ テーブル ダ。ウエ ニハ ナニモ ナイ..."); checkHiddenItem('kitchen_table', 'kitchen'); } 
-            else if (state.currentRoom === 'dining') { printLog("ナガイ テーブル ダ。シタ オ シラベタ。"); checkHiddenItem('dining_table', 'dining'); }
+            if (state.currentRoom === 'kitchen') { printLog("テーブル ノ ウエ オ シラベタ..."); checkHiddenItem('kitchen_table', 'kitchen'); } 
+            else if (state.currentRoom === 'dining') { printLog("ナガイ テーブル ノ シタ オ シラベタ..."); checkHiddenItem('dining_table', 'dining'); }
             else printLog("ココ ニハ ナイ。");
         } else if (noun === 'ホンダナ') {
-            if (state.currentRoom === 'study') { printLog("ホンダナ オ シラベタ。"); checkHiddenItem('study_books', 'study'); } else printLog("ココ ニハ ナイ。");
+            if (state.currentRoom === 'study') { printLog("ホンダナ ノ ホン ノ スキマ オ シラベタ..."); checkHiddenItem('study_books', 'study'); } else printLog("ココ ニハ ナイ。");
         } else if (noun === 'オモチャ' || noun === 'オモチャバコ') {
-            if (state.currentRoom === 'kids_room') { printLog("オモチャバコ オ シラベタ。"); checkHiddenItem('kids_toy', 'kids_room'); } else printLog("ココ ニハ ナイ。");
+            if (state.currentRoom === 'kids_room') { printLog("オモチャバコ ノ ナカ オ シラベタ..."); checkHiddenItem('kids_toy', 'kids_room'); } else printLog("ココ ニハ ナイ。");
         } else if (noun === 'ベッド') {
-            if (state.currentRoom === 'bedroom') { printLog("ベッド ノ シタ オ シラベタ。"); checkHiddenItem('bed', 'bedroom'); } else printLog("ココ ニハ ナイ。");
+            if (state.currentRoom === 'bedroom') { printLog("ベッド ノ シタ オ シラベタ..."); checkHiddenItem('bed', 'bedroom'); } else printLog("ココ ニハ ナイ。");
         } else if (noun === 'マド') {
-            if (state.currentRoom === 'corridor_2f') { printLog("マド ノ ソト ハ クラヤミ ダ。マドワク オ シラベタ。"); checkHiddenItem('window', 'corridor_2f'); } else printLog("ココ ニハ ナイ。");
+            if (state.currentRoom === 'corridor_2f') { printLog("マドワク ノ 隅 オ シラベタ..."); checkHiddenItem('window', 'corridor_2f'); } else printLog("ココ ニハ ナイ。");
         } else if (noun === 'クローゼット') {
-            if (state.currentRoom === 'bedroom') { printLog("クローゼット オ シラベタ。"); checkHiddenItem('closet', 'bedroom'); } else printLog("ココ ニハ ナイ。");
+            if (state.currentRoom === 'bedroom') { printLog("クローゼット ノ ナカ オ シラベタ..."); checkHiddenItem('closet', 'bedroom'); } else printLog("ココ ニハ ナイ。");
         } else if (noun === 'カイダン') {
-            if (state.currentRoom === 'hall') { printLog("ウエ ヘ ト ツヅク カイダン ダ。ウラガワ オ シラベタ。"); checkHiddenItem('hall_stairs', 'hall'); } else if (state.currentRoom === 'corridor_2f') printLog("シタ ヘ オリテイク カイダン ダ。"); else printLog("ココ ニハ ナイ。");
+            if (state.currentRoom === 'hall') { printLog("ウエ ヘ ト ツヅク カイダン ノ ウラガワ オ シラベタ..."); checkHiddenItem('hall_stairs', 'hall'); } else if (state.currentRoom === 'corridor_2f') printLog("シタ ヘ オリテイク カイダン ダ。"); else printLog("ココ ニハ ナイ。");
         } else if (noun === 'ユカ') {
-            if (state.currentRoom === 'dark_room' && state.flags.darkRoomLight) printLog(state.flags.trapdoorOpen ? "チカ ヘノ アナ ガ アイテイル。" : "ユカ ニ キ ノ トラップドア ガ アル。スキマ カラ アケラレソウダ。"); else printLog("トクニ カワッタ トコロ ハ ナイ。");
+            if (state.currentRoom === 'dark_room' && state.flags.darkRoomLight) printLog(state.flags.trapdoorOpen ? "チカ ヘノ アナ ガ アイテイル。" : "ユカ ニ キ ノ トラップドア ガ アル。スキマ カラ コジアケラレソウダ。"); else printLog("トクニ カワッタ トコロ ハ ナイ。");
         } else if (noun === 'カベ') {
-            if (state.currentRoom === 'bedroom') printLog(state.flags.wallBroken ? "カベ ニ オオキナ アナ ガ アイテイル。" : "キタ ノ カベ ニ ヒビ ガ イッテイル。"); else printLog("フツウ ノ カベ ダ。");
+            if (state.currentRoom === 'bedroom') printLog(state.flags.wallBroken ? "カベ ニ オオキナ アナ ガ アイテイル。" : "キタ ノ カベ ニ ヒビ ガ イッテイル。タタイタラ コワレソウダ。"); else printLog("フツウ ノ カベ ダ。");
         } else if (items[noun] && (items[noun].location === state.currentRoom || items[noun].location === 'inventory')) { printLog(items[noun].name + " ダ。");
-        } else printLog("ソコ ニハ ナニモ ナイ。");
-    } else {
-        const room = rooms[state.currentRoom]; if (room.examine) { room.examine(); drawCurrentRoom(); } else printLog("トクニ メボシイ モノ ハ ナイ。");
+        } else {
+            printLog("ソコ ニハ ナニモ ナイ。");
+        }
     }
-}
-function read(noun) {
-    if (noun === 'メモ' && (items['メモ'].location === state.currentRoom || items['メモ'].location === 'inventory')) printLog("『クラヤミ デハ ヒ オ トモセ。タカラ ハ ソノ オク ニ アル。』", COLORS.YELLOW); else printLog("ヨメナイ。");
 }
 
 function move(dir) {
+    let absDir = dir;
+    if (['マエ', 'ミギ', 'ウシロ', 'ヒダリ'].includes(dir)) {
+        absDir = getAbsoluteDir(dir);
+    }
+
     const room = rooms[state.currentRoom];
-    if (room.exits[dir]) {
-        if (['キタ','ミナミ','ヒガシ','ニシ'].includes(dir)) {
-            if (dir === 'キタ') state.facing = 'N'; if (dir === 'ミナミ') state.facing = 'S';
-            if (dir === 'ヒガシ') state.facing = 'E'; if (dir === 'ニシ') state.facing = 'W';
+    if (room.exits[absDir]) {
+        if (['キタ','ミナミ','ヒガシ','ニシ'].includes(absDir)) {
+            if (absDir === 'キタ') state.facing = 'N'; if (absDir === 'ミナミ') state.facing = 'S';
+            if (absDir === 'ヒガシ') state.facing = 'E'; if (absDir === 'ニシ') state.facing = 'W';
         }
-        state.currentRoom = room.exits[dir];
+        state.currentRoom = room.exits[absDir];
         if (!state.visitedRooms.includes(state.currentRoom)) state.visitedRooms.push(state.currentRoom);
         drawCurrentRoom(); look();
         if (state.currentRoom === 'front' && items['タカラ'].location === 'inventory') {
@@ -817,7 +893,7 @@ function move(dir) {
             printLog("ガメン オ タップ スルト タイトル ニ モドリマス。", COLORS.CYAN);
         }
     } else {
-        if (state.currentRoom === 'front' && dir === 'キタ' && !state.flags.frontDoorOpen) printLog("トビラ ガ シマッテ イル。", COLORS.RED); else printLog("ソッチ ニハ イケナイ。");
+        if (state.currentRoom === 'front' && absDir === 'キタ' && !state.flags.frontDoorOpen) printLog("トビラ ガ シマッテ イル。", COLORS.RED); else printLog("ソッチ ニハ イケナイ。");
     }
 }
 
@@ -894,9 +970,13 @@ function execCmd(cmd) { commitToggle(); const input = document.getElementById('c
 function insertText(text) { commitToggle(); const input = document.getElementById('cmd-input'); if (input.value && !input.value.endsWith(' ') && !input.value.endsWith('　')) input.value += ' '; input.value += text + ' '; input.classList.add('typing'); }
 
 const cmdData = {
-    'イドウ': [{text: 'キタ', action: () => execCmd('キタ'), type: 'other'},{text: 'ミナミ', action: () => execCmd('ミナミ'), type: 'other'},{text: 'ヒガシ', action: () => execCmd('ヒガシ'), type: 'other'},{text: 'ニシ', action: () => execCmd('ニシ'), type: 'other'},{text: 'ウエ', action: () => execCmd('ウエ'), type: 'other'},{text: 'シタ', action: () => execCmd('シタ'), type: 'other'}],
-    'ドウシ': [{text: 'ミル', action: () => execCmd('ミル'), type: 'verb'},{text: 'シラベル', action: () => insertText('シラベル'), type: 'verb'},{text: 'トル', action: () => insertText('トル'), type: 'verb'},{text: 'ツカウ', action: () => insertText('ツカウ'), type: 'verb'},{text: 'アケル', action: () => insertText('アケル'), type: 'verb'},{text: 'ヨム', action: () => insertText('ヨム'), type: 'verb'},{text: 'タタク', action: () => insertText('タタク'), type: 'verb'},{text: 'オトス', action: () => insertText('オトス'), type: 'verb'}],
-    'メイシ': [{text: 'ドア', action: () => insertText('ドア'), type: 'noun'},{text: 'カギ', action: () => insertText('カギ'), type: 'noun'},{text: 'メモ', action: () => insertText('メモ'), type: 'noun'},{text: 'マッチ', action: () => insertText('マッチ'), type: 'noun'},{text: 'ハンマー', action: () => insertText('ハンマー'), type: 'noun'},{text: 'バール', action: () => insertText('バール'), type: 'noun'},{text: 'タカラ', action: () => insertText('タカラ'), type: 'noun'},{text: 'キンカイ', action: () => insertText('キンカイ'), type: 'noun'},{text: 'カベ', action: () => insertText('カベ'), type: 'noun'},{text: 'ユカ', action: () => insertText('ユカ'), type: 'noun'},{text: 'レイゾウコ', action: () => insertText('レイゾウコ'), type: 'noun'},{text: 'タカラバコ', action: () => insertText('タカラバコ'), type: 'noun'},{text: 'テーブル', action: () => insertText('テーブル'), type: 'noun'},{text: 'ホンダナ', action: () => insertText('ホンダナ'), type: 'noun'},{text: 'オモチャ', action: () => insertText('オモチャ'), type: 'noun'},{text: 'ベッド', action: () => insertText('ベッド'), type: 'noun'},{text: 'クローゼット', action: () => insertText('クローゼット'), type: 'noun'},{text: 'マド', action: () => insertText('マド'), type: 'noun'},{text: 'カイダン', action: () => insertText('カイダン'), type: 'noun'}],
+    'イドウ': [
+        {text: 'キタ', action: () => execCmd('キタ'), type: 'other'},{text: 'ミナミ', action: () => execCmd('ミナミ'), type: 'other'},{text: 'ヒガシ', action: () => execCmd('ヒガシ'), type: 'other'},{text: 'ニシ', action: () => execCmd('ニシ'), type: 'other'},
+        {text: 'マエ', action: () => execCmd('マエ'), type: 'other'},{text: 'ウシロ', action: () => execCmd('ウシロ'), type: 'other'},{text: 'ミギ', action: () => execCmd('ミギ'), type: 'other'},{text: 'ヒダリ', action: () => execCmd('ヒダリ'), type: 'other'},
+        {text: 'ウエ', action: () => execCmd('ウエ'), type: 'other'},{text: 'シタ', action: () => execCmd('シタ'), type: 'other'}
+    ],
+    'ドウシ': [{text: 'ミル', action: () => insertText('ミル'), type: 'verb'},{text: 'シラベル', action: () => insertText('シラベル'), type: 'verb'},{text: 'トル', action: () => insertText('トル'), type: 'verb'},{text: 'ツカウ', action: () => insertText('ツカウ'), type: 'verb'},{text: 'アケル', action: () => insertText('アケル'), type: 'verb'},{text: 'ヨム', action: () => insertText('ヨム'), type: 'verb'},{text: 'タタク', action: () => insertText('タタク'), type: 'verb'},{text: 'オトス', action: () => insertText('オトス'), type: 'verb'}],
+    'メイシ': [{text: 'ヘヤ', action: () => insertText('ヘヤ'), type: 'noun'},{text: 'ドア', action: () => insertText('ドア'), type: 'noun'},{text: 'カギ', action: () => insertText('カギ'), type: 'noun'},{text: 'メモ', action: () => insertText('メモ'), type: 'noun'},{text: 'マッチ', action: () => insertText('マッチ'), type: 'noun'},{text: 'ハンマー', action: () => insertText('ハンマー'), type: 'noun'},{text: 'バール', action: () => insertText('バール'), type: 'noun'},{text: 'タカラ', action: () => insertText('タカラ'), type: 'noun'},{text: 'キンカイ', action: () => insertText('キンカイ'), type: 'noun'},{text: 'カベ', action: () => insertText('カベ'), type: 'noun'},{text: 'ユカ', action: () => insertText('ユカ'), type: 'noun'},{text: 'レイゾウコ', action: () => insertText('レイゾウコ'), type: 'noun'},{text: 'タカラバコ', action: () => insertText('タカラバコ'), type: 'noun'},{text: 'テーブル', action: () => insertText('テーブル'), type: 'noun'},{text: 'ホンダナ', action: () => insertText('ホンダナ'), type: 'noun'},{text: 'オモチャ', action: () => insertText('オモチャ'), type: 'noun'},{text: 'ベッド', action: () => insertText('ベッド'), type: 'noun'},{text: 'クローゼット', action: () => insertText('クローゼット'), type: 'noun'},{text: 'マド', action: () => insertText('マド'), type: 'noun'},{text: 'カイダン', action: () => insertText('カイダン'), type: 'noun'}],
     'ソノタ': [{text: 'マップ', action: () => execCmd('マップ'), type: 'other'},{text: 'モチモノ', action: () => execCmd('モチモノ'), type: 'other'},{text: 'コマンド', action: () => execCmd('コマンドリスト'), type: 'other'}]
 };
 function showCmdCategory(catName) {
@@ -952,6 +1032,9 @@ const stopBS = (e) => { e.preventDefault(); clearTimeout(bsTimeout); clearInterv
 const bsBtn = document.getElementById('bs-btn');
 bsBtn.addEventListener('mousedown', startBS); bsBtn.addEventListener('touchstart', startBS, {passive: false});
 ['mouseup', 'mouseleave', 'touchend', 'touchcancel'].forEach(ev => bsBtn.addEventListener(ev, stopBS));
+
+// コマンドタブの表示制御（OSキーボード使用時用）
+document.getElementById('cmd-section').style.display = 'flex';
 
 document.addEventListener('click', (e) => { if (!e.target.classList.contains('kb-toggle-btn')) commitToggle(); });
 
