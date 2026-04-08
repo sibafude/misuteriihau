@@ -611,6 +611,7 @@ function drawItems(ctx) {
         drawPoly(ctx, [[390, 250], [410, 230], [410, 280], [390, 300]], COLORS.RED, COLORS.WHITE);
         if (state.flags.chestOpened) drawPoly(ctx, [[250, 250], [230, 190], [370, 190], [390, 250]], COLORS.RED, COLORS.WHITE);
         else drawPoly(ctx, [[315, 260], [325, 260], [325, 270], [315, 270]], COLORS.BLACK, null);
+        
         dItem('タカラ', () => drawPoly(ctx, [[300, 240], [340, 240], [320, 260]], COLORS.CYAN, COLORS.WHITE));
     }
 }
@@ -718,7 +719,7 @@ function submitCommand() {
     input.value = ''; input.classList.remove('typing');
 }
 
-const verbsList = ['キタ', 'ミナミ', 'ヒガシ', 'ニシ', 'ウエ', 'シタ', 'マエ', 'ミギ', 'ヒダリ', 'ウシロ', 'ミル', 'シラベル', 'トル', 'オトス', 'ツカウ', 'アケル', 'タタク', 'ハナシカケル', 'ヨム', 'モチモノ', 'コマンドリスト', 'スタート', 'マップ'];
+const verbsList = ['キタ', 'ミナミ', 'ヒガシ', 'ニシ', 'ウエ', 'シタ', 'マエ', 'ミギ', 'ヒダリ', 'ウシロ', 'ミル', 'シラベル', 'トル', 'オトス', 'ツカウ', 'アケル', 'タタク', 'ハナシカケル', 'ヨム', 'モチモノ', 'コマンド', 'スタート', 'マップ'];
 
 function getAbsoluteDir(relDir) {
     const dirs = ['N', 'E', 'S', 'W'];
@@ -782,7 +783,7 @@ function processCommand(cmdStr) {
         case 'タタク': hit(noun); break;
         case 'ハナシカケル': talk(); break;
         case 'モチモノ': showInventory(); break;
-        case 'コマンドリスト': showCommandList(); break;
+        case 'コマンド': showCommandList(); break;
         case 'マップ': showMap(); break;
         default: printLog("ワカラナイ コマンド デス。", COLORS.RED);
     }
@@ -798,8 +799,18 @@ function showCommandList() {
     printLog("【イドウ】\nキタ, ミナミ, ヒガシ, ニシ, ウエ, シタ\nマエ, ウシロ, ミギ, ヒダリ", COLORS.WHITE);
     printLog("【ドウシ】\nミル, シラベル, トル, オトス, ツカウ, アケル, ヨム, タタク, ハナシカケル", COLORS.WHITE);
     printLog("【メイシ】\nヘヤ, ドア, トビラ, カギ, メモ, マッチ, タカラ, レイゾウコ, タカラバコ, テーブル, ホンダナ, オモチャ, ベッド, クローゼット, マド, カイダン, ハンマー, バール, カベ, ユカ, ホウセキ", COLORS.WHITE);
-    printLog("【ソノタ】\nマップ, モチモノ, コマンドリスト", COLORS.WHITE);
+    printLog("【ソノタ】\nマップ, モチモノ, コマンド", COLORS.WHITE);
     printLog("----------------------", COLORS.CYAN);
+}
+
+function lookOrExamineTable(roomName) {
+    let tableItems = [];
+    if (state.treasureRoom === roomName && !state.flags.chestOpened) tableItems.push("タカラバコ");
+    for (const key in items) {
+        if (items[key].location === roomName) tableItems.push(items[key].name);
+    }
+    if (tableItems.length > 0) printLog("テーブル ノ ウエ ニハ " + tableItems.join(' ト ') + " ガ アル。", COLORS.CYAN);
+    else printLog("テーブル ノ ウエ ニハ ナニモ ナイ。");
 }
 
 function look(noun) {
@@ -817,7 +828,7 @@ function look(noun) {
         } else if (noun === 'タカラバコ' && state.currentRoom === state.treasureRoom) { printLog(state.flags.chestOpened ? "アイテイル タカラバコ ダ。" : "オモソウナ タカラバコ ダ。");
         } else if (noun === 'メモ' && (items['メモ'].location === state.currentRoom || items['メモ'].location === 'inventory')) { printLog("フルイ カミキレ ダ。");
         } else if (noun === 'テーブル') {
-            if (state.currentRoom === 'kitchen') printLog("キ ノ テーブル ダ。"); else if (state.currentRoom === 'dining') printLog("ナガイ テーブル ダ。"); else printLog("ココ ニハ ナイ。");
+            if (state.currentRoom === 'kitchen' || state.currentRoom === 'dining') lookOrExamineTable(state.currentRoom); else printLog("ココ ニハ ナイ。");
         } else if (noun === 'ホンダナ' && state.currentRoom === 'study') { printLog("ホン ガ ギッシリ ツマッタ ホンダナ ダ。");
         } else if ((noun === 'オモチャ' || noun === 'オモチャバコ') && state.currentRoom === 'kids_room') { printLog("カラフルナ オモチャバコ ダ。");
         } else if (noun === 'ベッド' && state.currentRoom === 'bedroom') { printLog("オオキナ ベッド ダ。");
@@ -842,13 +853,13 @@ function examine(noun) {
         if (noun === 'ドア' || noun === 'トビラ') {
             if (state.currentRoom === 'front') printLog(state.flags.frontDoorOpen ? "トビラ ハ アイテイル。" : "キ ノ トビラ ダ。カギ ハ カカッテ イナイ ヨウダ。"); else printLog("フツウ ノ ドア ダ。");
         } else if (noun === 'レイゾウコ') {
-            if (state.currentRoom === 'kitchen') printLog(state.flags.fridgeOpen ? "レイゾウコ ハ アイテイル。" : "アケナイト ナカ ハ ワカラナイ。"); else printLog("ココ ニハ ナイ。");
+            if (state.currentRoom === 'kitchen') { printLog(state.flags.fridgeOpen ? "レイゾウコ ハ アイテイル。" : "アケナイト ナカ ハ ワカラナイ。"); } else printLog("ココ ニハ ナイ。");
         } else if (noun === 'タカラバコ') {
             if (state.currentRoom === state.treasureRoom) printLog(state.flags.chestOpened ? "タカラバコ ハ アイテイル。" : "オモソウナ タカラバコ ダ。カギ アナ ガ アル。"); else printLog("ココ ニハ ナイ。");
         } else if (noun === 'メモ' && (items['メモ'].location === state.currentRoom || items['メモ'].location === 'inventory')) { printLog("カミキレ ダ。ナニカ カイテアル。ヨメ ソウダ。");
         } else if (noun === 'テーブル') {
-            if (state.currentRoom === 'kitchen') { printLog("テーブル ノ ウエ オ シラベタ..."); checkHiddenItem('kitchen_table', 'kitchen'); } 
-            else if (state.currentRoom === 'dining') { printLog("ナガイ テーブル ノ シタ オ シラベタ..."); checkHiddenItem('dining_table', 'dining'); } else printLog("ココ ニハ ナイ。");
+            if (state.currentRoom === 'kitchen') { if(!checkHiddenItem('kitchen_table', 'kitchen')) lookOrExamineTable('kitchen'); } 
+            else if (state.currentRoom === 'dining') { if(!checkHiddenItem('dining_table', 'dining')) lookOrExamineTable('dining'); } else printLog("ココ ニハ ナイ。");
         } else if (noun === 'ホンダナ') {
             if (state.currentRoom === 'study') { printLog("ホンダナ ノ ホン ノ スキマ オ シラベタ..."); checkHiddenItem('study_books', 'study'); } else printLog("ココ ニハ ナイ。");
         } else if (noun === 'オモチャ' || noun === 'オモチャバコ') {
@@ -967,10 +978,14 @@ function execCmd(cmd) { commitToggle(); const input = document.getElementById('c
 function insertText(text) { commitToggle(); const input = document.getElementById('cmd-input'); if (input.value && !input.value.endsWith(' ') && !input.value.endsWith('　')) input.value += ' '; input.value += text + ' '; input.classList.add('typing'); }
 
 const cmdData = {
-    'イドウ': [{text: 'キタ', action: () => execCmd('キタ'), type: 'other'},{text: 'ミナミ', action: () => execCmd('ミナミ'), type: 'other'},{text: 'ヒガシ', action: () => execCmd('ヒガシ'), type: 'other'},{text: 'ニシ', action: () => execCmd('ニシ'), type: 'other'},{text: 'マエ', action: () => execCmd('マエ'), type: 'other'},{text: 'ウシロ', action: () => execCmd('ウシロ'), type: 'other'},{text: 'ミギ', action: () => execCmd('ミギ'), type: 'other'},{text: 'ヒダリ', action: () => execCmd('ヒダリ'), type: 'other'},{text: 'ウエ', action: () => execCmd('ウエ'), type: 'other'},{text: 'シタ', action: () => execCmd('シタ'), type: 'other'}],
+    'イドウ': [
+        {text: 'キタ', action: () => execCmd('キタ'), type: 'other'},{text: 'ミナミ', action: () => execCmd('ミナミ'), type: 'other'},{text: 'ヒガシ', action: () => execCmd('ヒガシ'), type: 'other'},{text: 'ニシ', action: () => execCmd('ニシ'), type: 'other'},
+        {text: 'マエ', action: () => execCmd('マエ'), type: 'other'},{text: 'ウシロ', action: () => execCmd('ウシロ'), type: 'other'},{text: 'ミギ', action: () => execCmd('ミギ'), type: 'other'},{text: 'ヒダリ', action: () => execCmd('ヒダリ'), type: 'other'},
+        {text: 'ウエ', action: () => execCmd('ウエ'), type: 'other'},{text: 'シタ', action: () => execCmd('シタ'), type: 'other'}
+    ],
     'ドウシ': [{text: 'ミル', action: () => insertText('ミル'), type: 'verb'},{text: 'シラベル', action: () => insertText('シラベル'), type: 'verb'},{text: 'トル', action: () => insertText('トル'), type: 'verb'},{text: 'ツカウ', action: () => insertText('ツカウ'), type: 'verb'},{text: 'アケル', action: () => insertText('アケル'), type: 'verb'},{text: 'ヨム', action: () => insertText('ヨム'), type: 'verb'},{text: 'タタク', action: () => insertText('タタク'), type: 'verb'},{text: 'オトス', action: () => insertText('オトス'), type: 'verb'}],
     'メイシ': [{text: 'ヘヤ', action: () => insertText('ヘヤ'), type: 'noun'},{text: 'ドア', action: () => insertText('ドア'), type: 'noun'},{text: 'カギ', action: () => insertText('カギ'), type: 'noun'},{text: 'メモ', action: () => insertText('メモ'), type: 'noun'},{text: 'マッチ', action: () => insertText('マッチ'), type: 'noun'},{text: 'ハンマー', action: () => insertText('ハンマー'), type: 'noun'},{text: 'バール', action: () => insertText('バール'), type: 'noun'},{text: 'タカラ', action: () => insertText('タカラ'), type: 'noun'},{text: 'ホウセキ', action: () => insertText('ホウセキ'), type: 'noun'},{text: 'カベ', action: () => insertText('カベ'), type: 'noun'},{text: 'ユカ', action: () => insertText('ユカ'), type: 'noun'},{text: 'レイゾウコ', action: () => insertText('レイゾウコ'), type: 'noun'},{text: 'タカラバコ', action: () => insertText('タカラバコ'), type: 'noun'},{text: 'テーブル', action: () => insertText('テーブル'), type: 'noun'},{text: 'ホンダナ', action: () => insertText('ホンダナ'), type: 'noun'},{text: 'オモチャ', action: () => insertText('オモチャ'), type: 'noun'},{text: 'ベッド', action: () => insertText('ベッド'), type: 'noun'},{text: 'クローゼット', action: () => insertText('クローゼット'), type: 'noun'},{text: 'マド', action: () => insertText('マド'), type: 'noun'},{text: 'カイダン', action: () => insertText('カイダン'), type: 'noun'}],
-    'ソノタ': [{text: 'マップ', action: () => execCmd('マップ'), type: 'other'},{text: 'モチモノ', action: () => execCmd('モチモノ'), type: 'other'},{text: 'コマンド', action: () => execCmd('コマンドリスト'), type: 'other'}]
+    'ソノタ': [{text: 'マップ', action: () => execCmd('マップ'), type: 'other'},{text: 'モチモノ', action: () => execCmd('モチモノ'), type: 'other'},{text: 'コマンド', action: () => execCmd('コマンド'), type: 'other'}]
 };
 function showCmdCategory(catName) {
     document.querySelectorAll('.cmd-cat-btn').forEach(btn => btn.classList.toggle('active', btn.id === `cat-${catName}`));
