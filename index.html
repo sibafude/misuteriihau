@@ -150,6 +150,27 @@
     }
     .kb-toggle-btn:active { background-color: #444; transform: scale(0.92); }
 
+    /* フル五十音キーボード */
+    #kb-full-container {
+        display: none; 
+        flex-direction: row-reverse; /* 右からア行 */
+        justify-content: space-between;
+        gap: 2px;
+    }
+    .kb-col {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        gap: 2px;
+    }
+    .kb-full-btn {
+        padding: 6px 0; background-color: #222; color: #fff;
+        border: 1px solid #444; border-radius: 4px; font-size: 13px; font-weight: bold;
+        text-align: center; cursor: pointer; touch-action: manipulation;
+        transition: transform 0.1s; user-select: none; -webkit-user-select: none;
+    }
+    .kb-full-btn:active { background-color: #444; transform: scale(0.92); }
+
     /* 最下部ボタン（空白 小 履歴 実行） */
     #bottom-actions {
         display: flex;
@@ -179,8 +200,8 @@
         <div class="form-row">
             <input type="text" id="cmd-input" placeholder="コマンド入力" inputmode="none" autocomplete="off" oninput="checkTyping()">
             <button type="button" class="action-btn" id="history-btn-top" onclick="showHistory()" title="履歴">履歴</button>
-            <button type="button" class="action-btn" id="cmd-toggle-btn" onclick="toggleCmdLogView()" style="display: none;" title="メッセージ/コマンド切替">📖</button>
-            <button type="button" class="action-btn" id="os-kb-btn" onclick="toggleOSKeyboard()" title="OSキーボード切替">⌨️</button>
+            <!-- キーボード切り替えボタン -->
+            <button type="button" class="action-btn" id="os-kb-btn" onclick="switchKeyboardMode()" title="キーボード切替">📱</button>
             <button type="submit" class="action-btn cmd-submit">実行</button>
         </div>
     </form>
@@ -190,7 +211,7 @@
     
     <!-- コントロールパネル -->
     <div id="controls">
-        <!-- コマンドセクション（OSキーボード使用時に📖でトグル表示） -->
+        <!-- コマンドセクション -->
         <div id="cmd-section" style="display: flex; flex-direction: column; gap: 4px;">
             <div class="scroll-row" id="cmd-tabs" style="display: flex;">
                 <button class="cat-btn cmd-cat-btn" id="cat-イドウ" onclick="showCmdCategory('イドウ')">イドウ</button>
@@ -211,6 +232,7 @@
                 <button class="special-btn" id="bs-btn">BS</button>
             </div>
 
+            <!-- ガラケー風キーボード -->
             <div id="kb-toggle-container">
                 <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'ア')">ア行</button>
                 <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'カ')">カ行</button>
@@ -223,6 +245,9 @@
                 <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'ラ')">ラ行</button>
                 <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'ワ')">ワ行</button>
             </div>
+            
+            <!-- フル五十音キーボード -->
+            <div id="kb-full-container"></div>
             
             <!-- 最下部ボタン（空白 小 履歴 実行） -->
             <div id="bottom-actions">
@@ -323,7 +348,7 @@ function checkHiddenItem(spot, roomName) {
 let cmdHistory = [];
 let historyIndex = -1;
 let isOSEnabled = false;
-let osViewMode = 'log'; // OSキーボード表示時のモード ('log' or 'cmd')
+let keyboardMode = 0; // 0: ガラケー風, 1: OS, 2: フル五十音
 
 // --- 描画系ユーティリティ ---
 function drawPoly(ctx, points, fillColor, strokeColor = COLORS.WHITE) {
@@ -674,46 +699,44 @@ function showHistory() {
     checkTyping();
 }
 
-function toggleOSKeyboard() {
+function switchKeyboardMode() {
     commitToggle();
     const input = document.getElementById('cmd-input');
     const btn = document.getElementById('os-kb-btn');
-    const cmdToggleBtn = document.getElementById('cmd-toggle-btn');
+    const kbArea = document.getElementById('keyboard-area');
+    const toggleKb = document.getElementById('kb-toggle-container');
+    const fullKb = document.getElementById('kb-full-container');
     
-    isOSEnabled = !isOSEnabled;
-    if (isOSEnabled) {
-        input.inputMode = "text";
-        btn.style.backgroundColor = COLORS.GREEN; btn.style.color = '#000';
-        cmdToggleBtn.style.display = 'block';
-        document.getElementById('keyboard-area').style.display = 'none';
-        osViewMode = 'log'; document.getElementById('log-container').style.display = 'block'; document.getElementById('cmd-section').style.display = 'none';
-        input.focus();
-    } else {
+    keyboardMode = (keyboardMode + 1) % 3;
+    
+    if (keyboardMode === 0) {
+        isOSEnabled = false;
         input.inputMode = "none";
-        btn.style.backgroundColor = '#333'; btn.style.color = '#FFF';
-        cmdToggleBtn.style.display = 'none';
-        document.getElementById('keyboard-area').style.display = 'block';
-        osViewMode = 'log'; document.getElementById('log-container').style.display = 'block'; document.getElementById('cmd-section').style.display = 'flex';
+        btn.style.backgroundColor = '#333'; btn.style.color = '#FFF'; btn.textContent = '📱';
+        kbArea.style.display = 'block';
+        toggleKb.style.display = 'grid';
+        fullKb.style.display = 'none';
+        input.blur();
+    } else if (keyboardMode === 1) {
+        isOSEnabled = true;
+        input.inputMode = "text";
+        btn.style.backgroundColor = COLORS.GREEN; btn.style.color = '#000'; btn.textContent = '⌨️';
+        kbArea.style.display = 'none'; 
+        setTimeout(() => { input.focus(); }, 50);
+    } else if (keyboardMode === 2) {
+        isOSEnabled = false;
+        input.inputMode = "none";
+        btn.style.backgroundColor = '#333'; btn.style.color = '#FFF'; btn.textContent = '🔠';
+        kbArea.style.display = 'block';
+        toggleKb.style.display = 'none';
+        fullKb.style.display = 'flex';
         input.blur();
     }
     setTimeout(scrollLogToBottom, 150);
 }
 
-function toggleCmdLogView() {
-    if (!isOSEnabled) return;
-    if (osViewMode === 'log') {
-        osViewMode = 'cmd';
-        document.getElementById('log-container').style.display = 'none'; document.getElementById('cmd-section').style.display = 'flex';
-    } else {
-        osViewMode = 'log';
-        document.getElementById('log-container').style.display = 'block'; document.getElementById('cmd-section').style.display = 'none';
-        setTimeout(scrollLogToBottom, 10);
-    }
-}
-
 function submitCommand() {
     const input = document.getElementById('cmd-input');
-    if (isOSEnabled && !input.value) { toggleCmdLogView(); input.focus(); return; }
     if (state.screen === 'treasure') { state.screen = 'play'; drawCurrentRoom(); return; }
     processCommand(input.value);
     input.value = ''; input.classList.remove('typing');
@@ -987,14 +1010,23 @@ const cmdData = {
     'メイシ': [{text: 'ヘヤ', action: () => insertText('ヘヤ'), type: 'noun'},{text: 'ドア', action: () => insertText('ドア'), type: 'noun'},{text: 'カギ', action: () => insertText('カギ'), type: 'noun'},{text: 'メモ', action: () => insertText('メモ'), type: 'noun'},{text: 'マッチ', action: () => insertText('マッチ'), type: 'noun'},{text: 'ハンマー', action: () => insertText('ハンマー'), type: 'noun'},{text: 'バール', action: () => insertText('バール'), type: 'noun'},{text: 'タカラ', action: () => insertText('タカラ'), type: 'noun'},{text: 'ホウセキ', action: () => insertText('ホウセキ'), type: 'noun'},{text: 'カベ', action: () => insertText('カベ'), type: 'noun'},{text: 'ユカ', action: () => insertText('ユカ'), type: 'noun'},{text: 'レイゾウコ', action: () => insertText('レイゾウコ'), type: 'noun'},{text: 'タカラバコ', action: () => insertText('タカラバコ'), type: 'noun'},{text: 'テーブル', action: () => insertText('テーブル'), type: 'noun'},{text: 'ホンダナ', action: () => insertText('ホンダナ'), type: 'noun'},{text: 'オモチャ', action: () => insertText('オモチャ'), type: 'noun'},{text: 'ベッド', action: () => insertText('ベッド'), type: 'noun'},{text: 'クローゼット', action: () => insertText('クローゼット'), type: 'noun'},{text: 'マド', action: () => insertText('マド'), type: 'noun'},{text: 'カイダン', action: () => insertText('カイダン'), type: 'noun'}],
     'ソノタ': [{text: 'マップ', action: () => execCmd('マップ'), type: 'other'},{text: 'モチモノ', action: () => execCmd('モチモノ'), type: 'other'},{text: 'コマンド', action: () => execCmd('コマンド'), type: 'other'}]
 };
+
 function showCmdCategory(catName) {
     document.querySelectorAll('.cmd-cat-btn').forEach(btn => btn.classList.toggle('active', btn.id === `cat-${catName}`));
     const container = document.getElementById('cmd-items'); container.innerHTML = '';
-    cmdData[catName].forEach(item => { const btn = document.createElement('button'); btn.className = `item-btn ${item.type}`; btn.textContent = item.text; btn.onclick = item.action; container.appendChild(btn); });
+    cmdData[catName].forEach(item => { 
+        const btn = document.createElement('button'); btn.className = `item-btn ${item.type}`; btn.textContent = item.text; 
+        btn.onclick = item.action; container.appendChild(btn); 
+    });
 }
 
 // --- ガラケー風仮想キーボード（トグル入力） ---
-const kbData = { 'ア': ['ア','イ','ウ','エ','オ'], 'カ': ['カ','キ','ク','ケ','コ'], 'サ': ['サ','シ','ス','セ','ソ'], 'タ': ['タ','チ','ツ','テ','ト'], 'ナ': ['ナ','ニ','ヌ','ネ','ノ'], 'ハ': ['ハ','ヒ','フ','ヘ','ホ'], 'マ': ['マ','ミ','ム','メ','モ'], 'ヤ': ['ヤ','ユ','ヨ'], 'ラ': ['ラ','リ','ル','レ','ロ'], 'ワ': ['ワ','ヲ','ン'] };
+const kbData = {
+    'ア': ['ア','イ','ウ','エ','オ'], 'カ': ['カ','キ','ク','ケ','コ'], 'サ': ['サ','シ','ス','セ','ソ'],
+    'タ': ['タ','チ','ツ','テ','ト'], 'ナ': ['ナ','ニ','ヌ','ネ','ノ'], 'ハ': ['ハ','ヒ','フ','ヘ','ホ'],
+    'マ': ['マ','ミ','ム','メ','モ'], 'ヤ': ['ヤ','ユ','ヨ'], 'ラ': ['ラ','リ','ル','レ','ロ'],
+    'ワ': ['ワ','ヲ','ン']
+};
 let toggleState = { active: false, cat: '', index: 0 };
 function commitToggle() { toggleState.active = false; }
 
@@ -1027,8 +1059,37 @@ bsBtn.addEventListener('mousedown', startBS); bsBtn.addEventListener('touchstart
 ['mouseup', 'mouseleave', 'touchend', 'touchcancel'].forEach(ev => bsBtn.addEventListener(ev, stopBS));
 document.addEventListener('click', (e) => { if (!e.target.classList.contains('kb-toggle-btn')) commitToggle(); });
 
+function initFullKeyboard() {
+    const kbCols = [
+        ['ア','イ','ウ','エ','オ'], ['カ','キ','ク','ケ','コ'], ['サ','シ','ス','セ','ソ'],
+        ['タ','チ','ツ','テ','ト'], ['ナ','ニ','ヌ','ネ','ノ'], ['ハ','ヒ','フ','ヘ','ホ'],
+        ['マ','ミ','ム','メ','モ'], ['ヤ','','ユ','','ヨ'], ['ラ','リ','ル','レ','ロ'],
+        ['ワ','ヲ','ン','','']
+    ];
+    const container = document.getElementById('kb-full-container');
+    kbCols.forEach(colChars => {
+        const colDiv = document.createElement('div');
+        colDiv.className = 'kb-col';
+        colChars.forEach(char => {
+            const btn = document.createElement('button');
+            btn.className = 'kb-full-btn';
+            if (char === '') {
+                btn.style.visibility = 'hidden';
+            } else {
+                btn.textContent = char;
+                btn.onclick = () => typeSpecial(char);
+            }
+            colDiv.appendChild(btn);
+        });
+        container.appendChild(colDiv);
+    });
+}
+
 window.onload = () => {
-    showCmdCategory('イドウ'); drawCurrentRoom(); printLog("「スタート」ト イレテ クダサイ。", COLORS.GREEN);
+    initFullKeyboard();
+    showCmdCategory('イドウ'); 
+    drawCurrentRoom(); 
+    printLog("「スタート」ト イレテ クダサイ。", COLORS.GREEN);
 };
 </script>
 </body>
