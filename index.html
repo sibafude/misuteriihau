@@ -222,9 +222,9 @@
             <div id="cmd-items" class="scroll-row"></div>
         </div>
 
-        <!-- 仮想キーボード領域 (OSキーボード時は完全に隠れる) -->
+        <!-- 仮想キーボード領域 -->
         <div id="keyboard-area">
-            <!-- 濁点などは半濁点の左に -->
+            <!-- 特殊キー -->
             <div class="special-keys" id="special-keys-container">
                 <button class="special-btn" onclick="typeSpecial('゛')">゛(濁点)</button>
                 <button class="special-btn" onclick="typeSpecial('゜')">゜(半濁)</button>
@@ -232,7 +232,7 @@
                 <button class="special-btn" id="bs-btn">BS</button>
             </div>
 
-            <!-- ガラケー風キーボード -->
+            <!-- キーボードモード0: ガラケー風 -->
             <div id="kb-toggle-container">
                 <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'ア')">ア行</button>
                 <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'カ')">カ行</button>
@@ -245,14 +245,14 @@
                 <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'ラ')">ラ行</button>
                 <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'ワ')">ワ行</button>
             </div>
-            
-            <!-- フル五十音キーボード -->
+
+            <!-- キーボードモード2: フル五十音 (JSで中身生成) -->
             <div id="kb-full-container"></div>
             
-            <!-- 最下部ボタン（空白 小 履歴 実行） -->
+            <!-- 最下部ボタン -->
             <div id="bottom-actions">
                 <button type="button" class="bottom-btn btn-action-dark" onclick="typeSpecial('空')">空白</button>
-                <button type="button" class="bottom-btn btn-action-dark" onclick="typeSpecial('小')">小</button>
+                <button type="button" class="bottom-btn btn-action-dark" onclick="typeSpecial('小')">小文字</button>
                 <button type="button" class="bottom-btn btn-history" onclick="showHistory()">履歴</button>
                 <button type="button" class="bottom-btn btn-submit" onclick="submitCommand()">実行</button>
             </div>
@@ -324,11 +324,28 @@ function initHiddenItems() {
 
 function getSpotHint(spot) {
     const names = {
-        'fridge':'レイゾウコ', 'kitchen_table':'ダイドコロ ノ テーブル', 'dining_table':'ショクドウ ノ テーブル',
-        'study_books':'ショサイ ノ ホンダナ', 'hall_stairs':'カイダン ノ ウラ', 'kids_toy':'オモチャバコ',
-        'bed':'ベッド', 'closet':'クローゼット', 'window':'マドワク'
+        'fridge':'ツメタイ トビラ ノ ナカ',
+        'kitchen_table':'メシ ヲ ツクル ヘヤ ノ ウエ',
+        'dining_table':'ショクタク ノ シタ',
+        'study_books':'チシキ ノ ヤマ ノ スキマ',
+        'hall_stairs':'ウエ ヘ ツヅク ミチ ノ ウラ',
+        'kids_toy':'アソビ ドウグ ノ ナカ',
+        'bed':'ネムリ ニ ツク バショ ノ シタ',
+        'closet':'フク ヲ シマウ トビラ ノ ナカ',
+        'window':'ソト ヲ ミル バショ ノ スミ'
     };
     return names[spot] || "ドコカ";
+}
+
+function getRoomHint(room) {
+    const names = {
+        'basement': 'ヒカリ トドカヌ チテイ',
+        'study': 'ホン ニ カコマレタ クウカン',
+        'dark_room': 'アカリ ノ ナイ トコロ',
+        'hidden_room': 'カベ ノ ムコウガワ',
+        'dining': 'ショクタク ノ アル ヘヤ'
+    };
+    return names[room] || "ドコカ";
 }
 
 function checkHiddenItem(spot, roomName) {
@@ -347,8 +364,10 @@ function checkHiddenItem(spot, roomName) {
 
 let cmdHistory = [];
 let historyIndex = -1;
+
+// キーボードモード管理: 0=ガラケー風, 1=OS, 2=フル五十音
+let keyboardMode = 0;
 let isOSEnabled = false;
-let keyboardMode = 0; // 0: ガラケー風, 1: OS, 2: フル五十音
 
 // --- 描画系ユーティリティ ---
 function drawPoly(ctx, points, fillColor, strokeColor = COLORS.WHITE) {
@@ -376,13 +395,38 @@ function drawTitle(ctx) {
     drawText(ctx, "HOUSE", 80, 160, 70, COLORS.BLUE);
     ctx.strokeStyle = COLORS.RED; ctx.strokeText("HOUSE", 80, 160);
 
-    drawPoly(ctx, [[400, 240], [580, 280], [580, 390], [400, 390]], COLORS.BLUE, COLORS.WHITE);
-    drawPoly(ctx, [[280, 300], [400, 240], [400, 390], [280, 390]], COLORS.CYAN, COLORS.WHITE);
-    drawPoly(ctx, [[370, 150], [550, 220], [580, 280], [400, 240]], COLORS.RED, COLORS.WHITE);
-    drawPoly(ctx, [[370, 150], [400, 240], [280, 300]], COLORS.CYAN, COLORS.WHITE);
-    drawPoly(ctx, [[450, 300], [490, 310], [490, 350], [450, 340]], COLORS.BLACK, COLORS.WHITE);
-    drawPoly(ctx, [[510, 260], [540, 270], [540, 290], [510, 280]], COLORS.BLACK, COLORS.WHITE);
-    drawPoly(ctx, [[330, 250], [360, 230], [360, 250], [330, 270]], COLORS.BLACK, COLORS.WHITE);
+    // 2階建て風パッケージ
+    drawPoly(ctx, [[280, 330], [400, 280], [400, 400], [280, 400]], COLORS.CYAN, COLORS.WHITE); // 1階左
+    drawPoly(ctx, [[400, 280], [580, 320], [580, 400], [400, 400]], COLORS.BLUE, COLORS.WHITE); // 1階右
+    drawPoly(ctx, [[350, 190], [440, 150], [440, 290], [350, 330]], COLORS.CYAN, COLORS.WHITE); // 2階左
+    drawPoly(ctx, [[440, 150], [560, 180], [560, 315], [440, 290]], COLORS.BLUE, COLORS.WHITE); // 2階右
+
+    // バルコニー
+    drawPoly(ctx, [[280, 330], [350, 300], [350, 270], [280, 300]], COLORS.BLACK, COLORS.WHITE);
+    drawLine(ctx, 290, 325, 290, 295); drawLine(ctx, 310, 315, 310, 285); drawLine(ctx, 330, 308, 330, 278);
+    drawPoly(ctx, [[350, 300], [400, 280], [400, 250], [350, 270]], COLORS.BLACK, COLORS.WHITE);
+    drawLine(ctx, 370, 290, 370, 260); drawLine(ctx, 390, 282, 390, 252);
+
+    // 屋根と煙突
+    drawPoly(ctx, [[510, 120], [520, 120], [520, 140], [510, 140]], COLORS.RED, COLORS.WHITE); // 煙突
+    drawPoly(ctx, [[440, 80], [440, 150], [350, 190]], COLORS.CYAN, COLORS.WHITE); // 屋根左
+    drawPoly(ctx, [[440, 80], [560, 110], [560, 180], [440, 150]], COLORS.RED, COLORS.WHITE); // 屋根右
+    
+    // ドアと窓
+    drawPoly(ctx, [[460, 310], [500, 320], [500, 380], [460, 370]], COLORS.BLACK, COLORS.WHITE);
+    drawPoly(ctx, [[470, 320], [490, 325], [490, 340], [470, 335]], null, COLORS.WHITE); 
+    
+    drawPoly(ctx, [[300, 340], [340, 320], [340, 360], [300, 380]], COLORS.BLACK, COLORS.WHITE);
+    drawLine(ctx, 320, 330, 320, 370); drawLine(ctx, 300, 360, 340, 340);
+
+    drawPoly(ctx, [[370, 220], [410, 200], [410, 240], [370, 260]], COLORS.BLACK, COLORS.WHITE);
+    drawLine(ctx, 390, 210, 390, 250); drawLine(ctx, 370, 240, 410, 220);
+
+    drawPoly(ctx, [[460, 200], [490, 210], [490, 250], [460, 240]], COLORS.BLACK, COLORS.WHITE);
+    drawLine(ctx, 475, 205, 475, 245); drawLine(ctx, 460, 220, 490, 230);
+    
+    drawPoly(ctx, [[510, 210], [540, 220], [540, 260], [510, 250]], COLORS.BLACK, COLORS.WHITE);
+    drawLine(ctx, 525, 215, 525, 255); drawLine(ctx, 510, 230, 540, 240);
 }
 
 function drawCompass(ctx) {
@@ -445,7 +489,7 @@ function drawMap(ctx) {
             drawPoly(ctx, [p1, p2, p3], COLORS.YELLOW, COLORS.BLACK);
         }
     }
-    drawText(ctx, "モドル ニハ ［ジッコウ］ ボタン", 320, 390, 16, COLORS.GREEN);
+    drawText(ctx, "モドル ニハ コマンド ヲ カラ ニシテ ［ジッコウ］ ボタン", 320, 390, 14, COLORS.GREEN);
 }
 
 function drawTreasure() {
@@ -722,7 +766,8 @@ function switchKeyboardMode() {
         input.inputMode = "text";
         btn.style.backgroundColor = COLORS.GREEN; btn.style.color = '#000'; btn.textContent = '⌨️';
         kbArea.style.display = 'none'; 
-        setTimeout(() => { input.focus(); }, 50);
+        // focusを即座に実行（iOS対策）
+        input.focus();
     } else if (keyboardMode === 2) {
         isOSEnabled = false;
         input.inputMode = "none";
@@ -907,7 +952,7 @@ function examine(noun) {
 function read(noun) {
     if (noun === 'メモ' && (items['メモ'].location === state.currentRoom || items['メモ'].location === 'inventory')) {
         let hint = "『カギ ハ " + getSpotHint(items['カギ'].location) + " ニ... ";
-        hint += "\n タカラ ハ " + rooms[state.treasureRoom].name + " ニ...』";
+        hint += "\n タカラ ハ " + getRoomHint(state.treasureRoom) + " ニ...』";
         printLog(hint, COLORS.YELLOW);
     } else printLog("ヨメナイ。");
 }
@@ -1010,23 +1055,14 @@ const cmdData = {
     'メイシ': [{text: 'ヘヤ', action: () => insertText('ヘヤ'), type: 'noun'},{text: 'ドア', action: () => insertText('ドア'), type: 'noun'},{text: 'カギ', action: () => insertText('カギ'), type: 'noun'},{text: 'メモ', action: () => insertText('メモ'), type: 'noun'},{text: 'マッチ', action: () => insertText('マッチ'), type: 'noun'},{text: 'ハンマー', action: () => insertText('ハンマー'), type: 'noun'},{text: 'バール', action: () => insertText('バール'), type: 'noun'},{text: 'タカラ', action: () => insertText('タカラ'), type: 'noun'},{text: 'ホウセキ', action: () => insertText('ホウセキ'), type: 'noun'},{text: 'カベ', action: () => insertText('カベ'), type: 'noun'},{text: 'ユカ', action: () => insertText('ユカ'), type: 'noun'},{text: 'レイゾウコ', action: () => insertText('レイゾウコ'), type: 'noun'},{text: 'タカラバコ', action: () => insertText('タカラバコ'), type: 'noun'},{text: 'テーブル', action: () => insertText('テーブル'), type: 'noun'},{text: 'ホンダナ', action: () => insertText('ホンダナ'), type: 'noun'},{text: 'オモチャ', action: () => insertText('オモチャ'), type: 'noun'},{text: 'ベッド', action: () => insertText('ベッド'), type: 'noun'},{text: 'クローゼット', action: () => insertText('クローゼット'), type: 'noun'},{text: 'マド', action: () => insertText('マド'), type: 'noun'},{text: 'カイダン', action: () => insertText('カイダン'), type: 'noun'}],
     'ソノタ': [{text: 'マップ', action: () => execCmd('マップ'), type: 'other'},{text: 'モチモノ', action: () => execCmd('モチモノ'), type: 'other'},{text: 'コマンド', action: () => execCmd('コマンド'), type: 'other'}]
 };
-
 function showCmdCategory(catName) {
     document.querySelectorAll('.cmd-cat-btn').forEach(btn => btn.classList.toggle('active', btn.id === `cat-${catName}`));
     const container = document.getElementById('cmd-items'); container.innerHTML = '';
-    cmdData[catName].forEach(item => { 
-        const btn = document.createElement('button'); btn.className = `item-btn ${item.type}`; btn.textContent = item.text; 
-        btn.onclick = item.action; container.appendChild(btn); 
-    });
+    cmdData[catName].forEach(item => { const btn = document.createElement('button'); btn.className = `item-btn ${item.type}`; btn.textContent = item.text; btn.onclick = item.action; container.appendChild(btn); });
 }
 
 // --- ガラケー風仮想キーボード（トグル入力） ---
-const kbData = {
-    'ア': ['ア','イ','ウ','エ','オ'], 'カ': ['カ','キ','ク','ケ','コ'], 'サ': ['サ','シ','ス','セ','ソ'],
-    'タ': ['タ','チ','ツ','テ','ト'], 'ナ': ['ナ','ニ','ヌ','ネ','ノ'], 'ハ': ['ハ','ヒ','フ','ヘ','ホ'],
-    'マ': ['マ','ミ','ム','メ','モ'], 'ヤ': ['ヤ','ユ','ヨ'], 'ラ': ['ラ','リ','ル','レ','ロ'],
-    'ワ': ['ワ','ヲ','ン']
-};
+const kbData = { 'ア': ['ア','イ','ウ','エ','オ'], 'カ': ['カ','キ','ク','ケ','コ'], 'サ': ['サ','シ','ス','セ','ソ'], 'タ': ['タ','チ','ツ','テ','ト'], 'ナ': ['ナ','ニ','ヌ','ネ','ノ'], 'ハ': ['ハ','ヒ','フ','ヘ','ホ'], 'マ': ['マ','ミ','ム','メ','モ'], 'ヤ': ['ヤ','ユ','ヨ'], 'ラ': ['ラ','リ','ル','レ','ロ'], 'ワ': ['ワ','ヲ','ン'] };
 let toggleState = { active: false, cat: '', index: 0 };
 function commitToggle() { toggleState.active = false; }
 
