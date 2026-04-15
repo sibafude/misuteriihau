@@ -14,13 +14,15 @@
     }
     html, body {
         width: 100%;
-        height: 100dvh;
+        height: 100%; /* JSでビューポート高さに動的調整します */
         margin: 0;
         padding: 0;
         overflow: hidden;
         position: fixed;
         background-color: #111;
         font-family: 'Courier New', Courier, monospace, sans-serif;
+        overscroll-behavior: none; /* バウンススクロール防止 */
+        touch-action: none; /* 全体のスワイプ（画面引きずり）を防止 */
     }
     #game-container {
         max-width: 640px;
@@ -32,7 +34,8 @@
         border-right: 1px solid #333;
         box-sizing: border-box;
         background-color: var(--c-bg);
-        position: relative; /* モーダル配置用 */
+        position: relative;
+        padding-bottom: env(safe-area-inset-bottom, 0px); /* iOS Safari等の下部セーフエリア対策 */
     }
     /* グラフィック画面 */
     canvas {
@@ -87,6 +90,7 @@
         color: var(--c-white);
         white-space: pre-wrap;
         min-height: 60px;
+        touch-action: pan-y; /* 縦スクロールのみ許可 */
     }
     #log-container p { margin: 0 0 6px 0; }
     
@@ -105,6 +109,7 @@
     .scroll-row {
         display: flex; overflow-x: auto; gap: 6px; padding: 2px 0;
         scrollbar-width: none; 
+        touch-action: pan-x; /* 横スクロールのみ許可 */
     }
     .scroll-row::-webkit-scrollbar { display: none; }
     
@@ -195,7 +200,7 @@
         top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(0,0,0,0.85);
         z-index: 1000;
-        display: none; /* 初期非表示 */
+        display: none;
         justify-content: center;
         align-items: center;
         backdrop-filter: blur(2px);
@@ -328,7 +333,7 @@
         </div>
     </div>
 
-    <!-- セーブ/ロード用モーダル (ローカルパスワード方式) -->
+    <!-- セーブ/ロード用モーダル -->
     <div id="save-load-modal">
         <div class="modal-content">
             <h3 class="modal-title" id="modal-title">タイトル</h3>
@@ -343,22 +348,41 @@
 </div>
 
 <script>
-// --- iOSキーボードスクロール対策 ---
+// --- iOS Safari 等の表示領域調整・キーボード対策 ---
 const scrollLogToBottom = () => {
     const logDiv = document.getElementById('log-container');
-    if (logDiv) logDiv.scrollTop = logDiv.scrollHeight;
+    if (logDiv) {
+        logDiv.scrollTop = logDiv.scrollHeight;
+    }
+};
+
+const adjustViewport = () => {
+    let vh = window.innerHeight;
+    // 仮想キーボード展開時などの実効高さを取得
+    if (window.visualViewport) {
+        vh = window.visualViewport.height;
+    }
+    document.documentElement.style.height = vh + 'px';
+    document.body.style.height = vh + 'px';
+    window.scrollTo(0, 0);
+    
+    // レイアウト再計算後にログを最下部へ
+    setTimeout(scrollLogToBottom, 50);
 };
 
 if (window.visualViewport) {
-    const adjustViewport = () => {
-        document.body.style.height = window.visualViewport.height + 'px';
-        window.scrollTo(0, 0);
-        setTimeout(scrollLogToBottom, 50);
-    };
     window.visualViewport.addEventListener('resize', adjustViewport);
     window.visualViewport.addEventListener('scroll', adjustViewport);
-    adjustViewport();
 }
+window.addEventListener('resize', adjustViewport);
+adjustViewport(); // 初期化
+
+// OSキーボード表示時のスクロール調整
+document.getElementById('cmd-input').addEventListener('focus', () => {
+    // OSキーボードが競り上がるアニメーションを考慮し、時間差で複数回実行
+    setTimeout(scrollLogToBottom, 50);
+    setTimeout(scrollLogToBottom, 300);
+});
 
 // --- カラー定義 ---
 const COLORS = {
@@ -397,7 +421,6 @@ resetState();
 let currentModalMode = '';
 
 function getSaveString() {
-    // 状態をJSON化し、URLエンコードしてからBase64に変換
     const data = { s: state, i: items };
     return btoa(encodeURIComponent(JSON.stringify(data)));
 }
@@ -456,14 +479,12 @@ function loadGame() {
     actionBtn.textContent = 'フッカツ スル';
     
     modal.style.display = 'flex';
-    // OSキーボードを出しやすくするためフォーカス
     setTimeout(() => ta.focus(), 100);
 }
 
 function closeModal() {
     document.getElementById('save-load-modal').style.display = 'none';
     currentModalMode = '';
-    // コマンド入力欄にフォーカスを戻す
     if(isOSEnabled) document.getElementById('cmd-input').focus();
 }
 
@@ -471,7 +492,6 @@ function executeModalAction() {
     const ta = document.getElementById('modal-textarea');
     
     if (currentModalMode === 'save') {
-        // コピー処理
         ta.select();
         try {
             document.execCommand('copy');
@@ -482,13 +502,11 @@ function executeModalAction() {
         closeModal();
         
     } else if (currentModalMode === 'load') {
-        // ロード処理
         const str = ta.value.trim();
         if (str) {
             if (restoreFromSaveString(str)) {
                 printLog("ジュモン ガ トケタ！ ロード ニ セイコウ シマシタ！", COLORS.GREEN);
                 if (state.screen === 'title') {
-                    // タイトル画面でロードした場合は即座にゲーム開始状態にする
                     state.screen = 'play';
                 }
                 drawCurrentRoom();
@@ -796,7 +814,7 @@ const rooms = {
         }
     },
     'corridor_2f': {
-        name: '2カイ ロウカ', desc: '2カイ ノ ロウカ ダ。キタ ト ヒガシ ニ トビラ ガ アル。シタ ヘ オリテイク カイダン ト マド ガ アル。',
+        name: '2カイ ロウカ', desc: '2カイ ロウカ ダ。キタ ト ヒガシ ニ トビラ ガ アル。シタ ヘ オリテイク カイダン ト マド ガ アル。',
         exits: { 'シタ': 'hall', 'キタ': 'kids_room', 'ヒガシ': 'bedroom' },
         draw: (ctx) => {
             drawPoly(ctx, [[0,0], [640,0], [640,400], [0,400]], COLORS.CYAN, null);
@@ -901,7 +919,11 @@ function printLog(text, color = COLORS.WHITE) {
     const logDiv = document.getElementById('log-container');
     const p = document.createElement('p'); p.textContent = text; p.style.color = color;
     logDiv.appendChild(p);
-    setTimeout(scrollLogToBottom, 10);
+    
+    // アニメーション等を考慮し複数回スクロール
+    scrollLogToBottom();
+    setTimeout(scrollLogToBottom, 50);
+    setTimeout(scrollLogToBottom, 300);
 }
 
 function normalizeInput(str) {
@@ -959,6 +981,7 @@ function switchKeyboardMode() {
         fullKb.style.display = 'flex';
         input.blur();
     }
+    
     setTimeout(scrollLogToBottom, 150);
 }
 
