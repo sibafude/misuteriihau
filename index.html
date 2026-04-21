@@ -193,80 +193,6 @@
     .btn-history { background-color: #444; color: #FFF; border: 1px solid #555; }
     .btn-submit { background-color: var(--c-white); color: #000; }
 
-    /* セーブ/ロード用カスタムモーダル */
-    #save-load-modal {
-        position: absolute;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.85);
-        z-index: 1000;
-        display: none;
-        justify-content: center;
-        align-items: center;
-        backdrop-filter: blur(2px);
-    }
-    .modal-content {
-        background: #111;
-        border: 2px solid var(--c-cyan);
-        border-radius: 8px;
-        padding: 16px;
-        width: 90%;
-        max-width: 400px;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
-    }
-    .modal-title {
-        color: var(--c-cyan);
-        font-size: 18px;
-        font-weight: bold;
-        margin: 0;
-        text-align: center;
-    }
-    .modal-desc {
-        color: var(--c-white);
-        font-size: 12px;
-        margin: 0;
-        text-align: center;
-        line-height: 1.4;
-    }
-    .modal-textarea {
-        width: 100%;
-        height: 100px;
-        background: #000;
-        color: var(--c-white);
-        border: 1px solid #555;
-        padding: 8px;
-        font-family: monospace;
-        font-size: 14px;
-        resize: none;
-        box-sizing: border-box;
-        word-break: break-all;
-    }
-    .modal-textarea:focus {
-        outline: none;
-        border-color: var(--c-green);
-    }
-    .modal-buttons {
-        display: flex;
-        justify-content: space-between;
-        gap: 8px;
-    }
-    .modal-btn {
-        flex: 1;
-        padding: 12px;
-        font-size: 14px;
-        font-weight: bold;
-        border-radius: 4px;
-        cursor: pointer;
-        border: 1px solid;
-        text-align: center;
-        touch-action: manipulation;
-    }
-    .modal-btn.primary { background: #000; border-color: var(--c-green); color: var(--c-green); }
-    .modal-btn.secondary { background: #000; border-color: #777; color: #ccc; }
-    .modal-btn:active { transform: scale(0.95); }
-
 </style>
 </head>
 <body>
@@ -328,19 +254,6 @@
                 <button type="button" class="bottom-btn btn-action-dark" onclick="typeSpecial('小')">小文字</button>
                 <button type="button" class="bottom-btn btn-history" onclick="showHistory()">履歴</button>
                 <button type="button" class="bottom-btn btn-submit" onclick="submitCommand()">実行</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- セーブ/ロード用モーダル -->
-    <div id="save-load-modal">
-        <div class="modal-content">
-            <h3 class="modal-title" id="modal-title">タイトル</h3>
-            <p class="modal-desc" id="modal-desc">説明文</p>
-            <textarea class="modal-textarea" id="modal-textarea" spellcheck="false"></textarea>
-            <div class="modal-buttons">
-                <button class="modal-btn secondary" onclick="closeModal()">キャンセル</button>
-                <button class="modal-btn primary" id="modal-action-btn" onclick="executeModalAction()">アクション</button>
             </div>
         </div>
     </div>
@@ -416,30 +329,8 @@ function resetState() {
 }
 resetState();
 
-// --- ローカルセーブ＆ロード (パスワード方式) ---
-let currentModalMode = '';
-
-function getSaveString() {
-    const data = { s: state, i: items };
-    return btoa(encodeURIComponent(JSON.stringify(data)));
-}
-
-function restoreFromSaveString(str) {
-    try {
-        const decodedStr = decodeURIComponent(atob(str));
-        const data = JSON.parse(decodedStr);
-        if (data && data.s && data.i) {
-            state = data.s;
-            items = data.i;
-            cmdHistory = [];
-            historyIndex = -1;
-            return true;
-        }
-    } catch (e) {
-        console.error("Save data parse error:", e);
-    }
-    return false;
-}
+// --- ローカルセーブ＆ロード (localStorage) ---
+const SAVE_KEY = 'mystery_house_save_data';
 
 function saveGame() {
     commitToggle();
@@ -448,73 +339,45 @@ function saveGame() {
         return;
     }
     
-    currentModalMode = 'save';
-    const modal = document.getElementById('save-load-modal');
-    document.getElementById('modal-title').textContent = 'セーブ (フッカツノジュモン)';
-    document.getElementById('modal-desc').textContent = 'イカノ モジレツ オ メモカ クリップボード ニ コピー シテ クダサイ。';
-    
-    const ta = document.getElementById('modal-textarea');
-    ta.value = getSaveString();
-    ta.readOnly = true;
-    
-    const actionBtn = document.getElementById('modal-action-btn');
-    actionBtn.textContent = 'コピー スル';
-    
-    modal.style.display = 'flex';
+    try {
+        const dataToSave = {
+            s: state,
+            i: items,
+            h: cmdHistory
+        };
+        localStorage.setItem(SAVE_KEY, JSON.stringify(dataToSave));
+        printLog("セーブ ニ セイコウ シマシタ！", COLORS.GREEN);
+    } catch (e) {
+        console.error("Save error:", e);
+        printLog("セーブ ニ シッパイ シマシタ。ブラウザ ノ セッテイ オ カクニン シテ クダサイ。", COLORS.RED);
+    }
 }
 
 function loadGame() {
     commitToggle();
-    currentModalMode = 'load';
-    const modal = document.getElementById('save-load-modal');
-    document.getElementById('modal-title').textContent = 'ロード (ジュモンヲニュウリョク)';
-    document.getElementById('modal-desc').textContent = 'ホゾンシタ フッカツノジュモン オ ペースト シテ クダサイ。';
-    
-    const ta = document.getElementById('modal-textarea');
-    ta.value = '';
-    ta.readOnly = false;
-    
-    const actionBtn = document.getElementById('modal-action-btn');
-    actionBtn.textContent = 'フッカツ スル';
-    
-    modal.style.display = 'flex';
-    setTimeout(() => ta.focus(), 100);
-}
-
-function closeModal() {
-    document.getElementById('save-load-modal').style.display = 'none';
-    currentModalMode = '';
-    if(isOSEnabled) document.getElementById('cmd-input').focus();
-}
-
-function executeModalAction() {
-    const ta = document.getElementById('modal-textarea');
-    
-    if (currentModalMode === 'save') {
-        ta.select();
-        try {
-            document.execCommand('copy');
-            printLog("ジュモン オ クリップボード ニ コピー シマシタ！", COLORS.GREEN);
-        } catch (err) {
-            printLog("コピー ニ シッパイ シマシタ。テドウ デ コピー シテ クダサイ。", COLORS.RED);
-        }
-        closeModal();
-        
-    } else if (currentModalMode === 'load') {
-        const str = ta.value.trim();
-        if (str) {
-            if (restoreFromSaveString(str)) {
-                printLog("ジュモン ガ トケタ！ ロード ニ セイコウ シマシタ！", COLORS.GREEN);
+    try {
+        const savedDataStr = localStorage.getItem(SAVE_KEY);
+        if (savedDataStr) {
+            const data = JSON.parse(savedDataStr);
+            if (data && data.s && data.i) {
+                state = data.s;
+                items = data.i;
+                cmdHistory = data.h || [];
+                historyIndex = -1;
+                
+                printLog("ロード ニ セイコウ シマシタ！", COLORS.GREEN);
                 if (state.screen === 'title') {
                     state.screen = 'play';
                 }
                 drawCurrentRoom();
-                if(state.screen === 'play') look();
-            } else {
-                printLog("ジュモン ガ マチガッテ イル ヨウダ...", COLORS.RED);
+                if (state.screen === 'play') look();
+                return;
             }
         }
-        closeModal();
+        printLog("セーブデータ ガ アリマセン。", COLORS.RED);
+    } catch (e) {
+        console.error("Load error:", e);
+        printLog("ロード ニ シッパイ シマシタ。データ ガ コワレテイル カモ シレマセン。", COLORS.RED);
     }
 }
 
@@ -777,7 +640,7 @@ const rooms = {
             if (state.flags.darkRoomLight) {
                 drawPoly(ctx, [[0,0], [640,0], [640,300], [0,300]], COLORS.MAGENTA, null);
                 drawPoly(ctx, [[0,300], [640,300], [640,400], [0,400]], COLORS.YELLOW, null);
-                drawPoly(ctx, [[260, 320], [380, 320], [420, 380], [220, 380]], COLORS.GREEN, COLORS.WHITE);
+                drawPoly(ctx, [[260, 320], [380, 320], [420, 380], [220, 380]], GREEN, COLORS.WHITE);
                 if (state.flags.trapdoorOpen) {
                     ctx.fillStyle = COLORS.BLACK; drawPoly(ctx, [[270, 330], [370, 330], [400, 370], [240, 370]], COLORS.BLACK, null);
                 } else {
