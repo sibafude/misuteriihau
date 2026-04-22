@@ -72,12 +72,13 @@
     /* 入力欄横のボタン類 */
     .action-btn {
         background-color: #333; color: #FFF; border: 1px solid #555; border-radius: 4px; 
-        padding: 8px 10px; font-weight: bold; font-size: 14px; cursor: pointer;
+        padding: 8px 6px; font-weight: bold; font-size: 13px; cursor: pointer;
         touch-action: manipulation; transition: transform 0.1s;
         white-space: nowrap; flex: 0 0 auto;
+        user-select: none; -webkit-user-select: none;
     }
     .action-btn:active { transform: scale(0.92); background-color: #555; }
-    .cmd-submit { background-color: var(--c-white); color: #000; border-color: var(--c-white); }
+    .cmd-submit { background-color: var(--c-white); color: #000; border-color: var(--c-white); padding: 8px 10px; }
     
     /* メッセージ領域 */
     #log-container {
@@ -118,6 +119,9 @@
         border: 1px solid #444; border-radius: 4px; font-size: 13px; font-weight: bold;
         text-align: center; cursor: pointer; touch-action: manipulation;
         transition: transform 0.1s;
+    }
+    .cat-btn.submit {
+        flex: 0 0 auto; padding: 8px 12px; background-color: var(--c-white); color: #000; border-color: var(--c-white);
     }
     .cat-btn:active { transform: scale(0.92); }
     .cat-btn.active { background-color: #555; color: #fff; border-color: #777; }
@@ -184,7 +188,7 @@
         margin-top: 2px;
     }
     .bottom-btn {
-        flex: 1; padding: 10px 0; font-size: 15px; font-weight: bold; border-radius: 4px;
+        flex: 1; padding: 10px 0; font-size: 13px; font-weight: bold; border-radius: 4px;
         cursor: pointer; touch-action: manipulation; transition: transform 0.1s; border: none;
         user-select: none; -webkit-user-select: none;
     }
@@ -205,6 +209,7 @@
     <form id="cmd-form" onsubmit="event.preventDefault(); submitCommand();">
         <div class="form-row">
             <input type="text" id="cmd-input" placeholder="コマンド入力" inputmode="none" autocomplete="off" oninput="checkTyping()">
+            <button type="button" class="action-btn" id="bs-btn-top" title="BS">BS</button>
             <button type="button" class="action-btn" id="history-btn-top" onclick="showHistory()" title="履歴">履歴</button>
             <button type="button" class="action-btn" id="os-kb-btn" onclick="switchKeyboardMode()" title="キーボード切替">📱</button>
             <button type="submit" class="action-btn cmd-submit">実行</button>
@@ -218,38 +223,40 @@
     <div id="controls">
         <div id="cmd-section" style="display: flex; flex-direction: column; gap: 4px;">
             <div class="scroll-row" id="cmd-tabs" style="display: flex;">
-                <button class="cat-btn cmd-cat-btn" id="cat-イドウ" onclick="showCmdCategory('イドウ')">イドウ</button>
-                <button class="cat-btn cmd-cat-btn" id="cat-ドウシ" onclick="showCmdCategory('ドウシ')">ドウシ</button>
-                <button class="cat-btn cmd-cat-btn" id="cat-メイシ" onclick="showCmdCategory('メイシ')">メイシ</button>
-                <button class="cat-btn cmd-cat-btn" id="cat-ソノタ" onclick="showCmdCategory('ソノタ')">ソノタ</button>
+                <button type="button" class="cat-btn submit" onclick="submitCommand()">実行</button>
+                <button type="button" class="cat-btn cmd-cat-btn" id="cat-イドウ" onclick="showCmdCategory('イドウ')">イドウ</button>
+                <button type="button" class="cat-btn cmd-cat-btn" id="cat-ドウシ" onclick="showCmdCategory('ドウシ')">ドウシ</button>
+                <button type="button" class="cat-btn cmd-cat-btn" id="cat-メイシ" onclick="showCmdCategory('メイシ')">メイシ</button>
+                <button type="button" class="cat-btn cmd-cat-btn" id="cat-ソノタ" onclick="showCmdCategory('ソノタ')">ソノタ</button>
             </div>
             <div id="cmd-items" class="scroll-row"></div>
         </div>
 
         <div id="keyboard-area">
             <div class="special-keys" id="special-keys-container">
-                <button class="special-btn" onclick="typeSpecial('゛')">゛(濁点)</button>
-                <button class="special-btn" onclick="typeSpecial('゜')">゜(半濁)</button>
-                <button class="special-btn" onclick="typeSpecial('ー')">ー</button>
-                <button class="special-btn" id="bs-btn">BS</button>
+                <button type="button" class="special-btn" onclick="typeSpecial('゛')">゛(濁点)</button>
+                <button type="button" class="special-btn" onclick="typeSpecial('゜')">゜(半濁)</button>
+                <button type="button" class="special-btn" onclick="typeSpecial('ー')">ー</button>
+                <button type="button" class="special-btn" id="bs-btn">BS</button>
             </div>
 
             <div id="kb-toggle-container">
-                <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'ア')">ア行</button>
-                <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'カ')">カ行</button>
-                <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'サ')">サ行</button>
-                <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'タ')">タ行</button>
-                <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'ナ')">ナ行</button>
-                <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'ハ')">ハ行</button>
-                <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'マ')">マ行</button>
-                <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'ヤ')">ヤ行</button>
-                <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'ラ')">ラ行</button>
-                <button class="kb-toggle-btn" onclick="handleKbToggle(event, 'ワ')">ワ行</button>
+                <button type="button" class="kb-toggle-btn" onclick="handleKbToggle(event, 'ア')">ア行</button>
+                <button type="button" class="kb-toggle-btn" onclick="handleKbToggle(event, 'カ')">カ行</button>
+                <button type="button" class="kb-toggle-btn" onclick="handleKbToggle(event, 'サ')">サ行</button>
+                <button type="button" class="kb-toggle-btn" onclick="handleKbToggle(event, 'タ')">タ行</button>
+                <button type="button" class="kb-toggle-btn" onclick="handleKbToggle(event, 'ナ')">ナ行</button>
+                <button type="button" class="kb-toggle-btn" onclick="handleKbToggle(event, 'ハ')">ハ行</button>
+                <button type="button" class="kb-toggle-btn" onclick="handleKbToggle(event, 'マ')">マ行</button>
+                <button type="button" class="kb-toggle-btn" onclick="handleKbToggle(event, 'ヤ')">ヤ行</button>
+                <button type="button" class="kb-toggle-btn" onclick="handleKbToggle(event, 'ラ')">ラ行</button>
+                <button type="button" class="kb-toggle-btn" onclick="handleKbToggle(event, 'ワ')">ワ行</button>
             </div>
 
             <div id="kb-full-container"></div>
             
             <div id="bottom-actions">
+                <button type="button" class="bottom-btn btn-submit" onclick="submitCommand()">実行</button>
                 <button type="button" class="bottom-btn btn-action-dark" onclick="typeSpecial('空')">空白</button>
                 <button type="button" class="bottom-btn btn-action-dark" onclick="typeSpecial('小')">小文字</button>
                 <button type="button" class="bottom-btn btn-history" onclick="showHistory()">履歴</button>
@@ -640,7 +647,7 @@ const rooms = {
             if (state.flags.darkRoomLight) {
                 drawPoly(ctx, [[0,0], [640,0], [640,300], [0,300]], COLORS.MAGENTA, null);
                 drawPoly(ctx, [[0,300], [640,300], [640,400], [0,400]], COLORS.YELLOW, null);
-                drawPoly(ctx, [[260, 320], [380, 320], [420, 380], [220, 380]], GREEN, COLORS.WHITE);
+                drawPoly(ctx, [[260, 320], [380, 320], [420, 380], [220, 380]], COLORS.GREEN, COLORS.WHITE);
                 if (state.flags.trapdoorOpen) {
                     ctx.fillStyle = COLORS.BLACK; drawPoly(ctx, [[270, 330], [370, 330], [400, 370], [240, 370]], COLORS.BLACK, null);
                 } else {
@@ -1165,9 +1172,17 @@ function typeSpecial(char) {
 let bsInterval = null; let bsTimeout = null;
 const startBS = (e) => { e.preventDefault(); typeSpecial('BS'); bsTimeout = setTimeout(() => { bsInterval = setInterval(() => { typeSpecial('BS'); }, 80); }, 300); };
 const stopBS = (e) => { e.preventDefault(); clearTimeout(bsTimeout); clearInterval(bsInterval); };
-const bsBtn = document.getElementById('bs-btn');
-bsBtn.addEventListener('mousedown', startBS); bsBtn.addEventListener('touchstart', startBS, {passive: false});
-['mouseup', 'mouseleave', 'touchend', 'touchcancel'].forEach(ev => bsBtn.addEventListener(ev, stopBS));
+
+// 長押しBSイベントの登録
+const bsBtns = [document.getElementById('bs-btn'), document.getElementById('bs-btn-top')];
+bsBtns.forEach(btn => {
+    if (btn) {
+        btn.addEventListener('mousedown', startBS);
+        btn.addEventListener('touchstart', startBS, {passive: false});
+        ['mouseup', 'mouseleave', 'touchend', 'touchcancel'].forEach(ev => btn.addEventListener(ev, stopBS));
+    }
+});
+
 document.addEventListener('click', (e) => { if (!e.target.classList.contains('kb-toggle-btn')) commitToggle(); });
 
 function initFullKeyboard() {
