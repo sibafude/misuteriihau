@@ -277,15 +277,12 @@ const scrollLogToBottom = () => {
 
 const adjustViewport = () => {
     let vh = window.innerHeight;
-    // 仮想キーボード展開時などの実効高さを取得
     if (window.visualViewport) {
         vh = window.visualViewport.height;
     }
     document.documentElement.style.height = vh + 'px';
     document.body.style.height = vh + 'px';
     window.scrollTo(0, 0);
-    
-    // レイアウト再計算後にログを最下部へ
     setTimeout(scrollLogToBottom, 50);
 };
 
@@ -294,11 +291,9 @@ if (window.visualViewport) {
     window.visualViewport.addEventListener('scroll', adjustViewport);
 }
 window.addEventListener('resize', adjustViewport);
-adjustViewport(); // 初期化
+adjustViewport();
 
-// OSキーボード表示時のスクロール調整
 document.getElementById('cmd-input').addEventListener('focus', () => {
-    // OSキーボードが競り上がるアニメーションを考慮し、時間差で複数回実行
     setTimeout(scrollLogToBottom, 50);
     setTimeout(scrollLogToBottom, 300);
 });
@@ -320,7 +315,7 @@ let isOSEnabled = false;
 function resetState() {
     state = {
         screen: 'title', currentRoom: 'front', facing: 'N', visitedRooms: ['front'],
-        treasureRoom: 'basement',
+        treasureRoom: 'basement', turnCount: 0,
         flags: { frontDoorOpen: false, fridgeOpen: false, chestOpened: false, darkRoomLight: false, wallBroken: false, trapdoorOpen: false }
     };
     items = {
@@ -388,7 +383,7 @@ function loadGame() {
     }
 }
 
-// --- アイテムのランダム配置とヒント生成 ---
+// --- アイテムのランダム配置 ---
 function initHiddenItems() {
     const hiddenSpots = ['fridge', 'kitchen_table', 'dining_table', 'study_books', 'hall_stairs', 'kids_toy', 'bed', 'closet', 'window'];
     for (let i = hiddenSpots.length - 1; i > 0; i--) {
@@ -766,11 +761,40 @@ function drawCurrentRoom() {
     if (room && room.draw) { room.draw(ctx); drawItems(ctx); }
 
     if (state.screen === 'clear') {
-        ctx.fillStyle = COLORS.BLACK; ctx.fillRect(80, 150, 480, 100);
-        ctx.strokeStyle = COLORS.CYAN; ctx.strokeRect(80, 150, 480, 100);
+        ctx.fillStyle = COLORS.BLACK; ctx.fillRect(80, 80, 480, 260);
+        ctx.strokeStyle = COLORS.CYAN; ctx.strokeRect(80, 80, 480, 260);
         ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-        drawText(ctx, "CONGRATULATIONS!", 320, 200, 30, COLORS.CYAN);
-        if (items['ホウセキ'].location === 'inventory') drawText(ctx, "★ PERFECT CLEAR ★", 320, 235, 24, COLORS.YELLOW);
+        drawText(ctx, "CONGRATULATIONS!", 320, 120, 30, COLORS.CYAN);
+        
+        // スコア計算
+        let score = 1000;
+        const turns = state.turnCount || 0;
+        let turnPenalty = turns * 5;
+        if (turnPenalty > 800) turnPenalty = 800; // ペナルティ上限
+        score -= turnPenalty;
+
+        let heldItemCount = 0;
+        for (let key in items) {
+            if (items[key].location === 'inventory' && key !== 'タカラ' && key !== 'ホウセキ') {
+                heldItemCount++;
+            }
+        }
+        score += heldItemCount * 50;
+
+        if (items['タカラ'].location === 'inventory') score += 500;
+        
+        let perfect = false;
+        if (items['ホウセキ'].location === 'inventory') {
+            score += 500;
+            perfect = true;
+        }
+
+        drawText(ctx, "ターン スウ : " + turns + "  (ペナルティ -" + turnPenalty + ")", 320, 160, 16, COLORS.WHITE);
+        drawText(ctx, "アイテム シュトク : " + heldItemCount + "  (ボーナス +" + (heldItemCount * 50) + ")", 320, 190, 16, COLORS.WHITE);
+        drawText(ctx, "TOTAL SCORE : " + score, 320, 230, 24, COLORS.GREEN);
+
+        if (perfect) drawText(ctx, "★ PERFECT CLEAR ★", 320, 270, 24, COLORS.YELLOW);
+        drawText(ctx, "タップ デ タイトル ヘ", 320, 310, 14, COLORS.WHITE);
     }
 }
 
@@ -907,6 +931,11 @@ function processCommand(cmdStr) {
         return; 
     }
 
+    // プレイ中のターンカウント
+    if (state.screen === 'play') {
+        state.turnCount = (state.turnCount || 0) + 1;
+    }
+
     const parts = normalizedCmd.split(/[\s　]+/);
     let verb = "", noun = "";
     if (parts.length === 1) verb = parts[0];
@@ -1032,10 +1061,16 @@ function examine(noun) {
 }
 
 function read(noun) {
-    if (noun === 'メモ' && (items['メモ'].location === state.currentRoom || items['メモ'].location === 'inventory')) {
-        let hint = "『カギ ハ " + getSpotHint(items['カギ'].location) + " ニ... ";
-        hint += "\n タカラ ハ " + getRoomHint(state.treasureRoom) + " ニ...』";
-        printLog(hint, COLORS.YELLOW);
+    if (noun === 'メモ') {
+        if (items['メモ'].location === 'inventory') {
+            let hint = "『カギ ハ " + getSpotHint(items['カギ'].location) + " ニ... ";
+            hint += "\n タカラ ハ " + getRoomHint(state.treasureRoom) + " ニ...』";
+            printLog(hint, COLORS.YELLOW);
+        } else if (items['メモ'].location === state.currentRoom) {
+            printLog("トッテ カラ デナイト ヨメナイ。", COLORS.RED);
+        } else {
+            printLog("ココ ニハ ナイ。");
+        }
     } else printLog("ヨメナイ。");
 }
 
@@ -1052,8 +1087,9 @@ function move(dir) {
         if (!state.visitedRooms.includes(state.currentRoom)) state.visitedRooms.push(state.currentRoom);
         drawCurrentRoom(); look();
         if (state.currentRoom === 'front' && items['タカラ'].location === 'inventory') {
-            state.screen = 'clear'; drawCurrentRoom(); printLog("\n★☆★ オメデトウ！ タカラ オ モッテ ダッシュツ シタ！ ★☆★", COLORS.YELLOW);
-            printLog("ガメン オ タップ スルト タイトル ニ モドリマス。", COLORS.CYAN);
+            state.screen = 'clear'; drawCurrentRoom(); 
+            printLog("\n★☆★ オメデトウ！ タカラ オ モッテ ダッシュツ シタ！ ★☆★", COLORS.YELLOW);
+            printLog("スコア カクニン ゴ、ガメン オ タップ スルト タイトル ニ モドリマス。", COLORS.CYAN);
         }
     } else {
         if (state.currentRoom === 'front' && absDir === 'キタ' && !state.flags.frontDoorOpen) printLog("トビラ ガ シマッテ イル。", COLORS.RED); else printLog("ソッチ ニハ イケナイ。");
@@ -1087,8 +1123,27 @@ function use(noun) {
             if (state.currentRoom === state.treasureRoom) {
                 if (!state.flags.chestOpened) { state.flags.chestOpened = true; items['タカラ'].location = state.treasureRoom; printLog("カギ ピッタリ ダ！ タカラバコ ガ アイタ！\nナカ カラ タカラ ガ アラワレタ！", COLORS.CYAN); drawCurrentRoom(); } else printLog("タカラバコ ハ モウ アイテイル。");
             } else printLog("ココ デハ ツカエナイ。");
-        } else if (noun === 'タカラ' || noun === 'ホウセキ') printLog(item.name + " オ ナガメタ。マブシイ！", COLORS.CYAN);
-        else printLog("ツカイカタ ガ ワカラナイ。");
+        } else if (noun === 'バール') {
+            if (state.currentRoom === 'dark_room' && state.flags.darkRoomLight) {
+                if (!state.flags.trapdoorOpen) {
+                    state.flags.trapdoorOpen = true; 
+                    rooms['dark_room'].exits['シタ'] = 'basement'; 
+                    printLog("バール デ トラップドア オ コジアケタ！\nシタ ヘ ト ツヅク カイダン ガ アラワレタ。", COLORS.CYAN); 
+                    drawCurrentRoom(); 
+                } else printLog("モウ アイテイル。");
+            } else printLog("ココ デ ツカッテモ イミ ガ ナイ。");
+        } else if (noun === 'ハンマー') {
+            if (state.currentRoom === 'bedroom') {
+                if (!state.flags.wallBroken) {
+                    state.flags.wallBroken = true; 
+                    rooms['bedroom'].exits['キタ'] = 'hidden_room'; 
+                    printLog("ハンマー デ カベ オ トコトン タタイタ！\nカベ ガ クズレ、キタ ニ ヌケアナ ガ デキタ！", COLORS.CYAN); 
+                    drawCurrentRoom(); 
+                } else printLog("モウ コワレテイル。");
+            } else printLog("ココ ニ コワセソウナ モノ ハ ナイ。");
+        } else if (noun === 'タカラ' || noun === 'ホウセキ') {
+            printLog(item.name + " オ ナガメタ。マブシイ！", COLORS.CYAN);
+        } else printLog("ツカイカタ ガ ワカラナイ。");
     } else printLog("ソレ ハ モッテイナイ。");
 }
 
@@ -1104,7 +1159,7 @@ function open(noun) {
     } else if (noun === 'ユカ') {
         if (state.currentRoom === 'dark_room' && state.flags.darkRoomLight) {
             if (!state.flags.trapdoorOpen) {
-                if (items['バール'].location === 'inventory') { state.flags.trapdoorOpen = true; rooms['dark_room'].exits['シタ'] = 'basement'; printLog("バール デ トラップドア オ コジアケタ！\nシタ ヘ ト ツヅク カイダン ガ アラワレタ。", COLORS.CYAN); drawCurrentRoom(); } else printLog("カタクテ アカナイ。ナニカ コジアケル モノ ガ ヒツヨウ ダ。", COLORS.RED);
+                printLog("カタクテ アカナイ。ナニカ コジアケル モノ オ 「ツカウ」 ヒツヨウ ガ アル。", COLORS.RED);
             } else printLog("スデニ アイテイル。");
         } else printLog("ココ ニハ ナイ。");
     } else if (noun === 'タカラバコ' && state.currentRoom === state.treasureRoom) {
@@ -1116,7 +1171,7 @@ function hit(noun) {
     if (noun === 'カベ') {
         if (state.currentRoom === 'bedroom') {
             if (!state.flags.wallBroken) {
-                if (items['ハンマー'].location === 'inventory') { state.flags.wallBroken = true; rooms['bedroom'].exits['キタ'] = 'hidden_room'; printLog("ハンマー デ カベ オ トコトン タタイタ！\nカベ ガ クズレ、キタ ニ ヌケアナ ガ デキタ！", COLORS.CYAN); drawCurrentRoom(); } else printLog("スデ デハ コワセソウ ニ ナイ。", COLORS.RED);
+                printLog("スデ デハ コワセナイ。ナニカ カタイ モノ オ 「ツカウ」 ヒツヨウ ガ アル。", COLORS.RED);
             } else printLog("スデニ コワレテイル。");
         } else printLog("コノ カベ オ タタイテモ イミ ハ ナサソウダ。");
     } else printLog(noun ? noun + " オ タタイタ。イタイ！" : "クウカン オ タタイタ。ムナシイ。"); 
